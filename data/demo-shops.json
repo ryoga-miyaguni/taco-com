@@ -2,21 +2,24 @@
   "_meta": {
     "description": "沖縄タコスマップ MVP 用デモデータ（30店舗）",
     "generated_at": "2026-04-11",
-    "notice": "※ 店舗名はすべてフィクションです。実在店舗のデータではありません。本番投入前に実在店舗のリストに差し替えてください。座標は沖縄県内の実在エリアに基づく妥当な範囲ですが、実店舗を指していません。",
+    "updated_at": "2026-04-12",
+    "notice": "※ 店舗名はすべてフィクションです。実在店舗のデータではありません。本番投入前に実在店舗のリストに差し替えてください。座標は沖縄県内の実在エリアに基づく妥当な範囲ですが、実店舗を指していません。画像は picsum.photos のランダムプレースホルダー（本番では実店舗写真に差し替え）。",
     "schema": {
       "name": "店舗名",
       "latitude": "緯度 (WGS84)",
       "longitude": "経度 (WGS84)",
       "address": "住所",
-      "type": "hard | soft | tacorice | mixed",
+      "type": "okinawa | mexican",
       "business_hours": "営業時間（文字列）",
-      "note": "特徴・備考"
+      "note": "特徴・備考",
+      "image_url": "店舗写真URL（任意）",
+      "website": "公式HPのURL（任意）",
+      "instagram": "Instagram プロフィールURL（任意）",
+      "x": "X (Twitter) プロフィールURL（任意）"
     },
     "type_legend": {
-      "hard": "ハードシェル（パリパリ）",
-      "soft": "ソフトシェル（もちもち）",
-      "tacorice": "タコライス主体",
-      "mixed": "両方 or 複数メニュー"
+      "okinawa": "沖縄タコス（沖縄独自のスタイル、タコライス、地元老舗など）",
+      "mexican": "メキシカン（本格メキシカンバル・カンティーナ系）"
     }
   },
   "shops": [
@@ -25,270 +28,309 @@
       "latitude": 26.2146,
       "longitude": 127.6867,
       "address": "沖縄県那覇市牧志2-1-1",
-      "type": "mixed",
+      "type": "okinawa",
       "business_hours": "11:00-22:00 (火曜定休)",
-      "note": "国際通りの中心。観光客にも人気のスタンダードな一軒"
+      "note": "国際通りの中心。観光客にも人気のスタンダードな一軒",
+      "image_url": "https://picsum.photos/seed/taco-kokusai/600/400",
+      "website": "https://example.com/taco-house-kokusai",
+      "instagram": "https://www.instagram.com/tacohouse_kokusai/"
     },
     {
       "name": "メキシカン食堂 アミーゴ",
       "latitude": 26.2103,
       "longitude": 127.6830,
       "address": "沖縄県那覇市松山1-8-5",
-      "type": "soft",
+      "type": "mexican",
       "business_hours": "17:00-24:00 (日曜定休)",
-      "note": "夜営業メインの酒場スタイル。ソフトタコスとマルガリータ"
+      "note": "夜営業メインの酒場スタイル。ソフトタコスとマルガリータ",
+      "image_url": "https://picsum.photos/seed/amigo/600/400",
+      "instagram": "https://www.instagram.com/mexicano_amigo_naha/",
+      "x": "https://x.com/amigo_naha"
     },
     {
       "name": "首里タコスキッチン",
       "latitude": 26.2167,
       "longitude": 127.7201,
       "address": "沖縄県那覇市首里当蔵町2-15",
-      "type": "hard",
+      "type": "okinawa",
       "business_hours": "11:30-20:00",
-      "note": "首里城近くの老舗風。昔ながらのハードシェル専門"
+      "note": "首里城近くの老舗風。昔ながらのハードシェル専門",
+      "image_url": "https://picsum.photos/seed/shuri/600/400"
     },
     {
       "name": "タコライスの店 きじむなぁ",
       "latitude": 26.2056,
       "longitude": 127.6492,
       "address": "沖縄県那覇市鏡水150",
-      "type": "tacorice",
+      "type": "okinawa",
       "business_hours": "10:00-21:00",
-      "note": "空港近く。旅行者が沖縄入りして真っ先に寄れる立地"
+      "note": "空港近く。旅行者が沖縄入りして真っ先に寄れる立地",
+      "image_url": "https://picsum.photos/seed/kijimuna/600/400"
     },
     {
       "name": "那覇タコス研究所",
       "latitude": 26.2245,
       "longitude": 127.6923,
       "address": "沖縄県那覇市安里388",
-      "type": "mixed",
+      "type": "okinawa",
       "business_hours": "11:00-15:00, 17:00-22:00 (水曜定休)",
-      "note": "若い店主のこだわり系。週替わりで新作を出す"
+      "note": "若い店主のこだわり系。週替わりで新作を出す",
+      "image_url": "https://picsum.photos/seed/naha-lab/600/400"
     },
     {
       "name": "おもろまちタコスバル",
       "latitude": 26.2192,
       "longitude": 127.6988,
       "address": "沖縄県那覇市おもろまち4-7-2",
-      "type": "soft",
+      "type": "mexican",
       "business_hours": "18:00-02:00",
-      "note": "DMMかりゆし水族館近くのバルスタイル"
+      "note": "DMMかりゆし水族館近くのバルスタイル",
+      "image_url": "https://picsum.photos/seed/omoromachi/600/400"
     },
     {
       "name": "浦添タコス工房 サルサ",
       "latitude": 26.2505,
       "longitude": 127.7203,
       "address": "沖縄県浦添市仲間1-22-4",
-      "type": "hard",
+      "type": "okinawa",
       "business_hours": "11:00-20:00 (月曜定休)",
-      "note": "自家製サルサソースが3種類から選べる"
+      "note": "自家製サルサソースが3種類から選べる",
+      "image_url": "https://picsum.photos/seed/urasoe-salsa/600/400"
     },
     {
       "name": "港川タコスガーデン",
       "latitude": 26.2611,
       "longitude": 127.7122,
       "address": "沖縄県浦添市港川2-15-8",
-      "type": "mixed",
+      "type": "okinawa",
       "business_hours": "11:00-18:00 (火水定休)",
-      "note": "港川外人住宅街の一軒家カフェ。テラス席あり"
+      "note": "港川外人住宅街の一軒家カフェ。テラス席あり",
+      "image_url": "https://picsum.photos/seed/minatogawa/600/400",
+      "website": "https://example.com/minatogawa-tacos",
+      "instagram": "https://www.instagram.com/minatogawa_tacos/"
     },
     {
       "name": "パイプライン タコス",
       "latitude": 26.2442,
       "longitude": 127.7308,
       "address": "沖縄県浦添市伊祖4-2-9",
-      "type": "mixed",
+      "type": "okinawa",
       "business_hours": "11:00-22:00",
-      "note": "パイプライン通り沿い。ドライブスルー有り"
+      "note": "パイプライン通り沿い。ドライブスルー有り",
+      "image_url": "https://picsum.photos/seed/pipeline/600/400"
     },
     {
       "name": "宜野湾タコスファクトリー",
       "latitude": 26.2815,
       "longitude": 127.7792,
       "address": "沖縄県宜野湾市真栄原2-12-5",
-      "type": "hard",
+      "type": "okinawa",
       "business_hours": "10:30-21:00",
-      "note": "老舗系の雰囲気。固めのハードシェルが名物"
+      "note": "老舗系の雰囲気。固めのハードシェルが名物",
+      "image_url": "https://picsum.photos/seed/ginowan-factory/600/400"
     },
     {
       "name": "普天間タコスダイナー",
       "latitude": 26.2752,
       "longitude": 127.7461,
       "address": "沖縄県宜野湾市普天間1-20-3",
-      "type": "tacorice",
+      "type": "okinawa",
       "business_hours": "7:00-16:00 (朝営業)",
-      "note": "朝タコライスが人気。米軍関係者も常連"
+      "note": "朝タコライスが人気。米軍関係者も常連",
+      "image_url": "https://picsum.photos/seed/futenma/600/400"
     },
     {
       "name": "コンベンションシティ タコスクラブ",
       "latitude": 26.2931,
       "longitude": 127.7381,
       "address": "沖縄県宜野湾市真志喜3-28-1",
-      "type": "mixed",
+      "type": "okinawa",
       "business_hours": "11:00-23:00",
-      "note": "コンベンションセンター近く。ファミリー向け"
+      "note": "コンベンションセンター近く。ファミリー向け",
+      "image_url": "https://picsum.photos/seed/convention/600/400"
     },
     {
       "name": "美浜タウン タコスデリ",
       "latitude": 26.3152,
       "longitude": 127.7558,
       "address": "沖縄県中頭郡北谷町美浜9-1",
-      "type": "soft",
+      "type": "okinawa",
       "business_hours": "11:00-23:00",
-      "note": "アメリカンビレッジ内。テイクアウトに強い"
+      "note": "アメリカンビレッジ内。テイクアウトに強い",
+      "image_url": "https://picsum.photos/seed/mihama-deli/600/400"
     },
     {
       "name": "サンセット タコスビーチ",
       "latitude": 26.3208,
       "longitude": 127.7525,
       "address": "沖縄県中頭郡北谷町美浜15-69",
-      "type": "mixed",
+      "type": "okinawa",
       "business_hours": "12:00-22:00",
-      "note": "サンセットビーチ徒歩1分。夕日を見ながら食べられる"
+      "note": "サンセットビーチ徒歩1分。夕日を見ながら食べられる",
+      "image_url": "https://picsum.photos/seed/sunset-beach/600/400"
     },
     {
       "name": "北谷サンセット メキシカーノ",
       "latitude": 26.3119,
       "longitude": 127.7608,
       "address": "沖縄県中頭郡北谷町宮城1-55",
-      "type": "hard",
+      "type": "mexican",
       "business_hours": "17:00-24:00 (月曜定休)",
-      "note": "夜のバル兼タコス屋。クラフトビール充実"
+      "note": "夜のバル兼タコス屋。クラフトビール充実",
+      "image_url": "https://picsum.photos/seed/mexicano/600/400"
     },
     {
       "name": "砂辺タコスショップ",
       "latitude": 26.3247,
       "longitude": 127.7485,
       "address": "沖縄県中頭郡北谷町砂辺240",
-      "type": "soft",
+      "type": "okinawa",
       "business_hours": "11:00-20:00 (水曜定休)",
-      "note": "サーファーが集まる海沿いの店"
+      "note": "サーファーが集まる海沿いの店",
+      "image_url": "https://picsum.photos/seed/sunabe/600/400"
     },
     {
       "name": "胡屋タコスステーション",
       "latitude": 26.3341,
       "longitude": 127.8028,
       "address": "沖縄県沖縄市胡屋1-3-22",
-      "type": "hard",
+      "type": "okinawa",
       "business_hours": "10:00-21:00",
-      "note": "コザの中心地。地元民の昼食スポット"
+      "note": "コザの中心地。地元民の昼食スポット",
+      "image_url": "https://picsum.photos/seed/goya/600/400"
     },
     {
       "name": "コザ タコスパーラー",
       "latitude": 26.3302,
       "longitude": 127.8105,
       "address": "沖縄県沖縄市中央1-9-14",
-      "type": "mixed",
+      "type": "okinawa",
       "business_hours": "11:00-22:00 (火曜定休)",
-      "note": "コザゲート通り沿い。レトロな内装が映える"
+      "note": "コザゲート通り沿い。レトロな内装が映える",
+      "image_url": "https://picsum.photos/seed/koza/600/400"
     },
     {
       "name": "ゲート通り タコスカンティーナ",
       "latitude": 26.3285,
       "longitude": 127.8150,
       "address": "沖縄県沖縄市中央2-6-36",
-      "type": "soft",
+      "type": "mexican",
       "business_hours": "18:00-02:00",
-      "note": "夜営業。米軍関係者が多く本格メキシカン寄り"
+      "note": "夜営業。米軍関係者が多く本格メキシカン寄り",
+      "image_url": "https://picsum.photos/seed/cantina/600/400"
     },
     {
       "name": "泡瀬タコス横丁",
       "latitude": 26.3410,
       "longitude": 127.8402,
       "address": "沖縄県沖縄市泡瀬4-4-1",
-      "type": "tacorice",
+      "type": "okinawa",
       "business_hours": "11:00-20:00 (木曜定休)",
-      "note": "タコライス専門。大盛り無料"
+      "note": "タコライス専門。大盛り無料",
+      "image_url": "https://picsum.photos/seed/awase/600/400"
     },
     {
       "name": "石川タコスガレージ",
       "latitude": 26.4273,
       "longitude": 127.8264,
       "address": "沖縄県うるま市石川1-18-5",
-      "type": "mixed",
+      "type": "okinawa",
       "business_hours": "11:00-21:00",
-      "note": "元整備工場を改装したガレージスタイル"
+      "note": "元整備工場を改装したガレージスタイル",
+      "image_url": "https://picsum.photos/seed/ishikawa/600/400"
     },
     {
       "name": "与勝タコスラウンジ",
       "latitude": 26.3761,
       "longitude": 127.8889,
       "address": "沖縄県うるま市勝連平敷屋3285",
-      "type": "hard",
+      "type": "okinawa",
       "business_hours": "11:30-19:00 (月火定休)",
-      "note": "海中道路近く。ドライブ途中の休憩に最適"
+      "note": "海中道路近く。ドライブ途中の休憩に最適",
+      "image_url": "https://picsum.photos/seed/yokatsu/600/400"
     },
     {
       "name": "読谷村 タコスファーム",
       "latitude": 26.3965,
       "longitude": 127.7442,
       "address": "沖縄県中頭郡読谷村座喜味2901-1",
-      "type": "soft",
+      "type": "okinawa",
       "business_hours": "11:00-17:00 (水曜定休)",
-      "note": "自家農園のトマトを使ったファームトゥテーブル"
+      "note": "自家農園のトマトを使ったファームトゥテーブル",
+      "image_url": "https://picsum.photos/seed/yomitan/600/400"
     },
     {
       "name": "残波タコスビーチハウス",
       "latitude": 26.4417,
       "longitude": 127.7088,
       "address": "沖縄県中頭郡読谷村宇座1861",
-      "type": "mixed",
+      "type": "okinawa",
       "business_hours": "10:00-19:00",
-      "note": "残波岬近く。観光ルート上の休憩ポイント"
+      "note": "残波岬近く。観光ルート上の休憩ポイント",
+      "image_url": "https://picsum.photos/seed/zanpa/600/400"
     },
     {
       "name": "恩納タコスシーサイド",
       "latitude": 26.4992,
       "longitude": 127.8551,
       "address": "沖縄県国頭郡恩納村恩納2288",
-      "type": "mixed",
+      "type": "okinawa",
       "business_hours": "11:00-21:00",
-      "note": "リゾートホテル街の一軒。オーシャンビュー"
+      "note": "リゾートホテル街の一軒。オーシャンビュー",
+      "image_url": "https://picsum.photos/seed/onna/600/400"
     },
     {
       "name": "万座タコスグリル",
       "latitude": 26.5078,
       "longitude": 127.8443,
       "address": "沖縄県国頭郡恩納村瀬良垣2260",
-      "type": "hard",
+      "type": "okinawa",
       "business_hours": "12:00-22:00",
-      "note": "万座毛近く。厚切りグリル肉のハードタコスが名物"
+      "note": "万座毛近く。厚切りグリル肉のハードタコスが名物",
+      "image_url": "https://picsum.photos/seed/manza/600/400"
     },
     {
       "name": "金武タコスベース",
       "latitude": 26.4542,
       "longitude": 127.9241,
       "address": "沖縄県国頭郡金武町金武4270",
-      "type": "hard",
+      "type": "okinawa",
       "business_hours": "10:00-23:00",
-      "note": "金武のタコス文化発祥エリア。老舗系"
+      "note": "金武のタコス文化発祥エリア。老舗系",
+      "image_url": "https://picsum.photos/seed/kin/600/400",
+      "website": "https://example.com/kin-tacos-base",
+      "instagram": "https://www.instagram.com/kin_tacos_base/",
+      "x": "https://x.com/kin_tacos"
     },
     {
       "name": "名護タコスカフェ オーシャン",
       "latitude": 26.5914,
       "longitude": 127.9772,
       "address": "沖縄県名護市大東1-8-10",
-      "type": "soft",
+      "type": "okinawa",
       "business_hours": "11:00-20:00 (火曜定休)",
-      "note": "名護市中心部。シークヮーサータコスが特徴"
+      "note": "名護市中心部。シークヮーサータコスが特徴",
+      "image_url": "https://picsum.photos/seed/nago-ocean/600/400"
     },
     {
       "name": "やんばる タコスキャンプ",
       "latitude": 26.6148,
       "longitude": 128.0126,
       "address": "沖縄県名護市宮里453-1",
-      "type": "mixed",
+      "type": "okinawa",
       "business_hours": "11:00-18:00 (水木定休)",
-      "note": "やんばるの森を感じる木造の店。ジビエメニューあり"
+      "note": "やんばるの森を感じる木造の店。ジビエメニューあり",
+      "image_url": "https://picsum.photos/seed/yanbaru/600/400"
     },
     {
       "name": "石垣タコスステーション",
       "latitude": 24.3396,
       "longitude": 124.1574,
       "address": "沖縄県石垣市美崎町7-1",
-      "type": "mixed",
+      "type": "okinawa",
       "business_hours": "11:00-22:00",
-      "note": "石垣島唯一の掲載店。港近くで観光客にも便利"
+      "note": "石垣島唯一の掲載店。港近くで観光客にも便利",
+      "image_url": "https://picsum.photos/seed/ishigaki/600/400"
     }
   ]
 }

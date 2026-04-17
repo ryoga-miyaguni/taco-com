@@ -1,128 +1,141 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Comment } from "@/lib/types";
+import type { Comment, ReportReason } from "@/lib/types";
+import { AVATAR_EMOJI, REPORT_REASON_LABEL } from "@/lib/types";
 import {
   addComment,
+  addReply,
   deleteComment,
-  getGuestId,
+  editComment,
   loadCommentsForShop,
+  loadReplies,
 } from "@/lib/comments";
+import { useAuth } from "./AuthProvider";
+import { getLikedCommentIds, toggleLike } from "@/lib/likes";
+import { getBadge } from "@/lib/badges";
+import { getUserById } from "@/lib/auth";
+import { hasReported, reportComment } from "@/lib/reports";
 
 const MAX_BODY = 200;
 
 export function CommentSection({ shopId }: { shopId: string }) {
+  const { user, requireAuth } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
-  const [guestId, setGuestId] = useState<string>("");
-  const [nickname, setNickname] = useState("");
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [body, setBody] = useState("");
   const [rating, setRating] = useState(5);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setGuestId(getGuestId());
+  const reloadLikes = () =>
+    setLikedIds(user ? getLikedCommentIds(user.id) : new Set());
+
+  const reload = () => {
     setComments(loadCommentsForShop(shopId));
+    reloadLikes();
+  };
+
+  useEffect(() => {
+    reload();
     setBody("");
     setError(null);
-  }, [shopId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shopId, user]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmed = body.trim();
-    if (!trimmed) {
-      setError("コメントを入力してください");
-      return;
-    }
-    if (trimmed.length > MAX_BODY) {
-      setError(`${MAX_BODY}文字以内で入力してください`);
-      return;
-    }
-    addComment({ shopId, nickname, body: trimmed, rating });
-    setComments(loadCommentsForShop(shopId));
-    setBody("");
-    setError(null);
-  };
+    if (!requireAuth()) return;
 
-  const handleDelete = (id: string) => {
-    deleteComment(id);
-    setComments(loadCommentsForShop(shopId));
+    const trimmed = body.trim();
+    if (!trimmed) { setError("コメントを入力してください"); return; }
+    if (trimmed.length > MAX_BODY) { setError(`${MAX_BODY}文字以内で入力してください`); return; }
+
+    addComment({
+      shopId,
+      userId: user!.id,
+      nickname: user!.displayName,
+      avatarKey: user!.avatarKey,
+      body: trimmed,
+      rating,
+    });
+    setBody("");
+    setRating(5);
+    setError(null);
+    reload();
   };
 
   return (
-    <div className="mt-5 pt-4 border-t border-gray-100">
-      <h3 className="text-sm font-bold text-gray-900 mb-3">
-        口コミ ({comments.length})
-      </h3>
+    <div>
+      {/* ヘッダー */}
+      <div className="flex items-baseline justify-between">
+        <h3 className="font-display text-ink text-lg">口コミ</h3>
+        <span className="font-serif-it italic text-[11px] text-naranja-deep tracking-[0.2em] uppercase">
+          {comments.length} reseñas
+        </span>
+      </div>
 
-      <form onSubmit={handleSubmit} className="mb-4 space-y-2">
-        <div className="flex items-center gap-2">
-          <input
-            type="text"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            placeholder="ニックネーム（任意）"
-            maxLength={20}
-            className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-          />
-          <StarPicker value={rating} onChange={setRating} />
-        </div>
-        <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="味の感想、おすすめメニューなど"
-          rows={3}
-          maxLength={MAX_BODY}
-          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-amber-500"
-        />
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-400">
-            {body.length}/{MAX_BODY}
-          </span>
-          {error && <span className="text-xs text-red-600">{error}</span>}
+      {/* 投稿フォーム */}
+      <form
+        onSubmit={handleSubmit}
+        className="mt-3 bg-masa-hi border-2 border-ink rounded-lg p-3 space-y-2 shadow-[3px_3px_0_var(--ink)]"
+      >
+        {user ? (
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-lg leading-none">{AVATAR_EMOJI[user.avatarKey]}</span>
+              <span className="font-display text-[13px] text-ink">{user.displayName}</span>
+              <StarPicker value={rating} onChange={setRating} />
+            </div>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder="味の感想、おすすめメニューなど…"
+              rows={3}
+              maxLength={MAX_BODY}
+              className="w-full resize-none bg-crema border-2 border-ink rounded-lg px-3 py-2 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+            />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-mono text-muted-foreground">
+                {body.length}/{MAX_BODY}
+              </span>
+              {error && (
+                <span className="text-[11px] text-salsa font-bold">{error}</span>
+              )}
+              <button
+                type="submit"
+                className="font-display text-[13px] px-5 h-9 rounded-full bg-naranja text-crema border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] transition-all"
+              >
+                投稿 →
+              </button>
+            </div>
+          </>
+        ) : (
           <button
-            type="submit"
-            className="px-3 py-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-700 rounded-md"
+            type="button"
+            onClick={() => requireAuth()}
+            className="w-full font-serif-it italic text-[13px] text-muted-foreground py-3 text-center hover:text-naranja transition-colors"
           >
-            投稿
+            ログインしてレビューを書く →
           </button>
-        </div>
+        )}
       </form>
 
+      {/* コメント一覧 */}
       {comments.length === 0 ? (
-        <p className="text-xs text-gray-400">まだ口コミはありません</p>
+        <p className="mt-4 text-center text-[11px] font-serif-it italic text-muted-foreground">
+          まだ口コミはありません — Sé el primero
+        </p>
       ) : (
-        <ul className="space-y-3">
-          {comments.map((c) => (
-            <li key={c.id} className="text-sm">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-semibold text-gray-900 truncate">
-                    {c.nickname}
-                  </span>
-                  <span className="text-amber-500 text-xs shrink-0">
-                    {"★".repeat(c.rating)}
-                    <span className="text-gray-300">
-                      {"★".repeat(5 - c.rating)}
-                    </span>
-                  </span>
-                </div>
-                {c.guestId === guestId && (
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(c.id)}
-                    className="text-xs text-gray-400 hover:text-red-600"
-                  >
-                    削除
-                  </button>
-                )}
-              </div>
-              <p className="mt-1 text-gray-700 whitespace-pre-wrap break-words">
-                {c.body}
-              </p>
-              <p className="mt-0.5 text-[10px] text-gray-400">
-                {formatDate(c.createdAt)}
-              </p>
-            </li>
+        <ul className="mt-4 space-y-3">
+          {comments.map((c, i) => (
+            <CommentCard
+              key={c.id}
+              comment={c}
+              rotate={i % 2 === 0 ? "-0.35deg" : "0.35deg"}
+              shopId={shopId}
+              liked={likedIds.has(c.id)}
+              onChanged={reload}
+            />
           ))}
         </ul>
       )}
@@ -130,24 +143,445 @@ export function CommentSection({ shopId }: { shopId: string }) {
   );
 }
 
-function StarPicker({
-  value,
-  onChange,
+// ─── CommentCard ─────────────────────────────────────────────────────────────
+
+function CommentCard({
+  comment: c,
+  rotate,
+  shopId,
+  liked,
+  onChanged,
 }: {
-  value: number;
-  onChange: (n: number) => void;
+  comment: Comment;
+  rotate: string;
+  shopId: string;
+  liked: boolean;
+  onChanged: () => void;
 }) {
+  const { user, requireAuth } = useAuth();
+  const isOwner = !!user && user.id === c.userId;
+
+  // 著者のバッジ
+  const author = getUserById(c.userId);
+  const badge = author ? getBadge(author.maxLikes) : null;
+
+  const handleLike = () => {
+    if (!requireAuth()) return;
+    toggleLike(c.id, user!.id);
+    onChanged();
+  };
+
+  const [reported, setReported] = useState(
+    () => !!user && hasReported(c.id, user.id),
+  );
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+
+  const handleReportSubmit = (reason: ReportReason) => {
+    reportComment(c.id, user!.id, reason);
+    setReported(true);
+    setReportModalOpen(false);
+    onChanged();
+  };
+
+  const [editing, setEditing] = useState(false);
+  const [editBody, setEditBody] = useState(c.body);
+  const [replyOpen, setReplyOpen] = useState(false);
+  const [replies, setReplies] = useState<Comment[]>([]);
+  const [showReplies, setShowReplies] = useState(false);
+
+  const reloadReplies = () => setReplies(loadReplies(c.id));
+
+  useEffect(() => {
+    if (showReplies) reloadReplies();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showReplies, c.id]);
+
+  const handleDelete = () => {
+    if (!user) return;
+    if (!window.confirm("このコメントを削除しますか？")) return;
+    deleteComment(c.id, user.id);
+    onChanged();
+  };
+
+  const handleEditSave = () => {
+    if (!user) return;
+    const trimmed = editBody.trim();
+    if (!trimmed) return;
+    editComment(c.id, user.id, trimmed);
+    setEditing(false);
+    onChanged();
+  };
+
+  const replyCount = loadReplies(c.id).length;
+
   return (
-    <div className="flex items-center gap-0.5 shrink-0">
+    <li
+      className="relative bg-crema border-2 border-ink rounded-lg p-3 shadow-[2px_2px_0_var(--ink)]"
+      style={{ transform: `rotate(${rotate})` }}
+    >
+      {/* 著者行 */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="h-6 w-6 rounded-full bg-naranja text-crema border-2 border-ink flex items-center justify-center text-[13px] shrink-0">
+            {AVATAR_EMOJI[c.avatarKey]}
+          </span>
+          <span className="font-display text-[13px] text-ink truncate">{c.nickname}</span>
+          {badge && (
+            <span
+              title={`${badge.label} — ${badge.description}`}
+              className="text-base leading-none shrink-0"
+            >
+              {badge.emoji}
+            </span>
+          )}
+        </div>
+        {c.rating !== null && (
+          <span className="text-[12px] shrink-0 tracking-tight">
+            <span className="text-naranja">{"★".repeat(c.rating)}</span>
+            <span className="text-ink/25">{"★".repeat(5 - c.rating)}</span>
+          </span>
+        )}
+      </div>
+
+      {/* 本文 */}
+      {editing ? (
+        <div className="mt-2 space-y-1">
+          <textarea
+            value={editBody}
+            onChange={(e) => setEditBody(e.target.value)}
+            rows={3}
+            maxLength={MAX_BODY}
+            autoFocus
+            className="w-full resize-none bg-white border-2 border-ink rounded-lg px-3 py-2 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+          />
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="text-[11px] font-bold uppercase tracking-wider text-ink/50 hover:text-ink"
+            >
+              キャンセル
+            </button>
+            <button
+              type="button"
+              onClick={handleEditSave}
+              className="text-[11px] font-bold uppercase tracking-wider text-naranja-deep hover:underline"
+            >
+              保存
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-1.5 text-[13px] text-ink whitespace-pre-wrap wrap-break-word leading-snug">
+          {c.body}
+        </p>
+      )}
+
+      {/* フッター */}
+      <div className="mt-2 flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <p className="text-[10px] font-mono text-muted-foreground">
+            {formatDate(c.createdAt)}
+            {c.updatedAt !== c.createdAt && " (編集済)"}
+          </p>
+          {/* いいねボタン（自分のコメントは無効） */}
+          <button
+            type="button"
+            onClick={handleLike}
+            disabled={isOwner}
+            title={isOwner ? "自分のコメントにはいいねできません" : undefined}
+            className={`flex items-center gap-1 text-[11px] font-bold px-2 h-6 rounded-full border transition-all ${
+              isOwner
+                ? "bg-crema text-ink/25 border-ink/20 cursor-not-allowed"
+                : liked
+                  ? "bg-naranja text-crema border-ink shadow-[1px_1px_0_var(--ink)]"
+                  : "bg-crema text-ink/50 border-ink/30 hover:border-ink hover:text-naranja"
+            }`}
+          >
+            <span>{liked ? "♥" : "♡"}</span>
+            <span>{c.likeCount}</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* 返信ボタン */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!requireAuth()) return;
+              setReplyOpen((v) => !v);
+            }}
+            className="flex items-center gap-1 text-[11px] font-bold px-3 h-7 rounded-full border-2 border-ink/30 text-ink/60 hover:border-naranja hover:text-naranja transition-colors"
+          >
+            <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M1 3.5h7a2.5 2.5 0 0 1 0 5H5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/><path d="M3 5.5 1 3.5 3 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            返信
+          </button>
+
+          {/* 編集・削除（自分のみ） */}
+          {isOwner && !editing && (
+            <>
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="text-[11px] font-bold px-3 h-7 rounded-full border-2 border-ink/20 text-ink/50 hover:border-ink hover:text-ink transition-colors"
+              >
+                編集
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="text-[11px] font-bold px-3 h-7 rounded-full border-2 border-salsa/40 text-salsa hover:bg-salsa hover:text-crema transition-colors"
+              >
+                削除
+              </button>
+            </>
+          )}
+
+          {/* 通報（自分以外） */}
+          {!isOwner && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!requireAuth()) return;
+                if (!reported) setReportModalOpen(true);
+              }}
+              disabled={reported}
+              className={`flex items-center gap-1 text-[11px] font-bold px-3 h-7 rounded-full border-2 transition-colors ${
+                reported
+                  ? "border-ink/10 text-ink/25 cursor-default"
+                  : "border-ink/20 text-ink/50 hover:border-salsa hover:text-salsa"
+              }`}
+            >
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none" aria-hidden="true"><path d="M6 1v5M6 9v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+              {reported ? "通報済" : "通報"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* 返信フォーム */}
+      {replyOpen && user && (
+        <ReplyForm
+          shopId={shopId}
+          parentId={c.id}
+          onSubmitted={() => {
+            setReplyOpen(false);
+            setShowReplies(true);
+            reloadReplies();
+          }}
+        />
+      )}
+
+      {/* 返信一覧トグル */}
+      {replyCount > 0 && (
+        <div className="mt-2 pl-3 border-l-2 border-dashed border-ink/30">
+          <button
+            type="button"
+            onClick={() => setShowReplies((v) => !v)}
+            className="text-[11px] font-bold text-naranja-deep hover:underline"
+          >
+            {showReplies ? "返信を閉じる" : `返信 ${replyCount}件を見る`}
+          </button>
+          {showReplies && (
+            <ul className="mt-2 space-y-2">
+              {replies.map((r) => (
+                <ReplyCard key={r.id} reply={r} onChanged={reloadReplies} />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {/* 通報理由モーダル */}
+      {reportModalOpen && (
+        <ReportModal
+          onSubmit={handleReportSubmit}
+          onClose={() => setReportModalOpen(false)}
+        />
+      )}
+    </li>
+  );
+}
+
+// ─── ReplyForm ────────────────────────────────────────────────────────────────
+
+function ReplyForm({
+  shopId,
+  parentId,
+  onSubmitted,
+}: {
+  shopId: string;
+  parentId: string;
+  onSubmitted: () => void;
+}) {
+  const { user } = useAuth();
+  const [body, setBody] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    const trimmed = body.trim();
+    if (!trimmed) { setError("返信を入力してください"); return; }
+    if (trimmed.length > MAX_BODY) { setError(`${MAX_BODY}文字以内`); return; }
+    addReply({ shopId, parentId, userId: user.id, nickname: user.displayName, avatarKey: user.avatarKey, body: trimmed });
+    setBody("");
+    setError(null);
+    onSubmitted();
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="mt-2 space-y-1">
+      <textarea
+        value={body}
+        onChange={(e) => setBody(e.target.value)}
+        placeholder="返信を入力…"
+        rows={2}
+        maxLength={MAX_BODY}
+        autoFocus
+        className="w-full resize-none bg-white border-2 border-ink rounded-lg px-3 py-2 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+      />
+      {error && <p className="text-[11px] text-salsa font-bold">{error}</p>}
+      <div className="flex justify-end gap-2">
+        <button
+          type="submit"
+          className="font-display text-[12px] px-4 h-8 rounded-full bg-naranja text-crema border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] transition-all"
+        >
+          返信する →
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ─── ReplyCard ────────────────────────────────────────────────────────────────
+
+function ReplyCard({ reply: r, onChanged }: { reply: Comment; onChanged: () => void }) {
+  const { user } = useAuth();
+  const isOwner = !!user && user.id === r.userId;
+
+  const [editing, setEditing] = useState(false);
+  const [editBody, setEditBody] = useState(r.body);
+
+  const handleDelete = () => {
+    if (!user) return;
+    deleteComment(r.id, user.id);
+    onChanged();
+  };
+
+  const handleEditSave = () => {
+    if (!user) return;
+    const trimmed = editBody.trim();
+    if (!trimmed) return;
+    editComment(r.id, user.id, trimmed);
+    setEditing(false);
+    onChanged();
+  };
+
+  return (
+    <li className="bg-masa-lo border border-ink/30 rounded-lg p-2">
+      <div className="flex items-center gap-2">
+        <span className="text-sm leading-none">{AVATAR_EMOJI[r.avatarKey]}</span>
+        <span className="font-display text-[12px] text-ink">{r.nickname}</span>
+        <span className="ml-auto text-[10px] font-mono text-muted-foreground">
+          {formatDate(r.createdAt)}
+        </span>
+      </div>
+      {editing ? (
+        <div className="mt-1 space-y-1">
+          <textarea
+            value={editBody}
+            onChange={(e) => setEditBody(e.target.value)}
+            rows={2}
+            maxLength={MAX_BODY}
+            autoFocus
+            className="w-full resize-none bg-white border border-ink rounded px-2 py-1 text-[12px] outline-none focus:ring-1 focus:ring-naranja"
+          />
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => setEditing(false)} className="text-[11px] font-bold text-ink/50 hover:text-ink">キャンセル</button>
+            <button type="button" onClick={handleEditSave} className="text-[11px] font-bold text-naranja-deep hover:underline">保存</button>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-1 text-[12px] text-ink whitespace-pre-wrap wrap-break-word leading-snug">{r.body}</p>
+      )}
+      {isOwner && !editing && (
+        <div className="mt-1 flex gap-2 justify-end">
+          <button type="button" onClick={() => setEditing(true)} className="text-[10px] font-bold uppercase text-ink/40 hover:text-ink">編集</button>
+          <button type="button" onClick={handleDelete} className="text-[10px] font-bold uppercase text-salsa hover:underline">削除</button>
+        </div>
+      )}
+    </li>
+  );
+}
+
+// ─── ReportModal ─────────────────────────────────────────────────────────────
+
+function ReportModal({
+  onSubmit,
+  onClose,
+}: {
+  onSubmit: (reason: ReportReason) => void;
+  onClose: () => void;
+}) {
+  const reasons = Object.entries(REPORT_REASON_LABEL) as [ReportReason, string][];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="paper card-stamp w-full max-w-xs rounded-2xl border-[3px] border-ink shadow-[6px_6px_0_var(--ink)] bg-crema overflow-hidden">
+        <div className="px-5 pt-5 pb-3">
+          <p className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep mb-0.5">
+            Reportar
+          </p>
+          <h2 className="font-display text-ink text-[18px] leading-tight">
+            通報理由を選択
+          </h2>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            該当する理由を選んでください
+          </p>
+        </div>
+        <ul className="px-3 pb-3 space-y-1.5">
+          {reasons.map(([key, label]) => (
+            <li key={key}>
+              <button
+                type="button"
+                onClick={() => onSubmit(key)}
+                className="w-full text-left font-display text-[13px] text-ink px-4 h-11 rounded-xl border-2 border-ink/20 bg-masa-hi hover:border-salsa hover:bg-salsa/5 hover:text-salsa transition-colors"
+              >
+                {label}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="px-3 pb-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full font-display text-[12px] text-ink/50 h-9 rounded-xl border-2 border-ink/15 hover:border-ink/30 hover:text-ink transition-colors"
+          >
+            キャンセル
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── StarPicker ───────────────────────────────────────────────────────────────
+
+function StarPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center gap-0.5 shrink-0 ml-auto bg-crema border-2 border-ink rounded-full px-2 h-9">
       {[1, 2, 3, 4, 5].map((n) => (
         <button
           key={n}
           type="button"
           onClick={() => onChange(n)}
           aria-label={`${n}つ星`}
-          className={`text-lg leading-none ${
-            n <= value ? "text-amber-500" : "text-gray-300"
-          }`}
+          className={`text-base leading-none transition-transform hover:scale-110 ${n <= value ? "text-naranja" : "text-(--ink)/20"}`}
         >
           ★
         </button>
@@ -155,6 +589,8 @@ function StarPicker({
     </div>
   );
 }
+
+// ─── ヘルパー ─────────────────────────────────────────────────────────────────
 
 function formatDate(iso: string): string {
   const d = new Date(iso);

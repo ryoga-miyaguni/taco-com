@@ -5,9 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-jp), "Zen Kaku Gothic New", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --font-heading: var(--font-jp-display), var(--font-serif), "RocknRoll One", serif;
+  --font-serif: var(--font-serif), "Fraunces", ui-serif, serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,6 +40,16 @@
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
+  --color-salsa: var(--salsa);
+  --color-lima: var(--lima);
+  --color-masa: var(--masa);
+  --color-masa-hi: var(--masa-hi);
+  --color-masa-lo: var(--masa-lo);
+  --color-ink: var(--ink);
+  --color-naranja: var(--naranja);
+  --color-naranja-hi: var(--naranja-hi);
+  --color-naranja-deep: var(--naranja-deep);
+  --color-crema: var(--crema);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -52,91 +63,190 @@ html,
 body {
   margin: 0;
   padding: 0;
-  background: #e5e7eb;
-  color: #171717;
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: #fbe8c8;
+  color: #1a0a02;
+  font-family: var(--font-jp), "Zen Kaku Gothic New", system-ui, sans-serif;
+  font-feature-settings: "palt";
 }
+
+/* ------------------------------------------------------------------
+   Mercado Taquería — design tokens
+   Warm cream paper, salsa orange, cilantro lime, charcoal ink
+   ------------------------------------------------------------------ */
+:root {
+  --ink: #1a0a02;              /* espresso near-black */
+  --masa: #fbe8c8;             /* warm corn masa cream */
+  --masa-hi: #fff5df;
+  --masa-lo: #f5d9a3;
+  --naranja: #ea580c;          /* primary orange */
+  --naranja-hi: #f97316;
+  --naranja-deep: #c2410c;
+  --salsa: #c1121f;            /* salsa red */
+  --lima: #6b8e23;             /* cilantro olive/lime */
+  --crema: #fff8ee;
+
+  --background: var(--masa);
+  --foreground: var(--ink);
+  --card: var(--crema);
+  --card-foreground: var(--ink);
+  --popover: var(--crema);
+  --popover-foreground: var(--ink);
+  --primary: var(--naranja);
+  --primary-foreground: #fff8ee;
+  --secondary: #f5d9a3;
+  --secondary-foreground: var(--ink);
+  --muted: #f2dcac;
+  --muted-foreground: #6b4a26;
+  --accent: #ffddab;
+  --accent-foreground: var(--ink);
+  --destructive: var(--salsa);
+  --border: #1a0a02;
+  --input: #e7cc95;
+  --ring: var(--naranja);
+  --chart-1: var(--naranja);
+  --chart-2: var(--salsa);
+  --chart-3: var(--lima);
+  --chart-4: #eab308;
+  --chart-5: #7c2d12;
+  --radius: 0.625rem;
+  --sidebar: var(--crema);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--naranja);
+  --sidebar-primary-foreground: #fff8ee;
+  --sidebar-accent: #ffddab;
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--ink);
+  --sidebar-ring: var(--naranja);
+}
+
+.dark {
+  --background: #1a0a02;
+  --foreground: #fff5df;
+  --card: #2a1608;
+  --card-foreground: #fff5df;
+  --popover: #2a1608;
+  --popover-foreground: #fff5df;
+  --primary: var(--naranja-hi);
+  --primary-foreground: #1a0a02;
+  --secondary: #3a1e08;
+  --secondary-foreground: #fff5df;
+  --muted: #3a1e08;
+  --muted-foreground: #e7b66a;
+  --accent: #3a1e08;
+  --accent-foreground: #fff5df;
+  --destructive: #f87171;
+  --border: #fff5df;
+  --input: #3a1e08;
+  --ring: var(--naranja-hi);
+  --sidebar: #2a1608;
+  --sidebar-foreground: #fff5df;
+  --sidebar-primary: var(--naranja-hi);
+  --sidebar-primary-foreground: #1a0a02;
+  --sidebar-accent: #3a1e08;
+  --sidebar-accent-foreground: #fff5df;
+  --sidebar-border: #fff5df;
+  --sidebar-ring: var(--naranja-hi);
+}
+
+/* ------------------------------------------------------------------
+   Paper grain — layered noise + warm radial wash
+   ------------------------------------------------------------------ */
+.paper {
+  background-color: var(--crema);
+  background-image:
+    radial-gradient(at 20% 0%, rgba(234, 88, 12, 0.12) 0%, transparent 55%),
+    radial-gradient(at 100% 100%, rgba(193, 18, 31, 0.10) 0%, transparent 50%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0 0  0 0 0 0.08 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size: auto, auto, 160px 160px;
+}
+
+.paper-lite {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.1  0 0 0 0 0.05  0 0 0 0 0  0 0 0 0.05 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* Thick brutalist card with offset hard shadow */
+.card-stamp {
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.card-stamp-sm {
+  border: 1.5px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+
+.font-display {
+  font-family: var(--font-jp-display), "RocknRoll One", serif;
+  letter-spacing: 0.01em;
+}
+.font-serif-it {
+  font-family: var(--font-serif), "Fraunces", ui-serif, serif;
+  font-style: italic;
+}
+
+/* ------------------------------------------------------------------
+   Map markers — simple taco dots (color-coded by type) + brutalist cluster
+   ------------------------------------------------------------------ */
+.maplibregl-marker { will-change: transform; }
 
 .maplibregl-marker:hover .marker-dot {
   transform: scale(1.15);
 }
 .maplibregl-marker:focus-within .marker-dot {
-  outline: 2px solid #000;
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
-/* MapLibre's own .maplibregl-map class forces position:relative, which
-   collides with Tailwind absolute positioning. The map container in
-   MapView.tsx uses inline styles for guaranteed specificity, so no CSS
-   override is needed here — MapLibre's bundled stylesheet handles the rest. */
-
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+.taco-cluster {
+  border-radius: 999px;
+  border: 2.5px solid var(--ink);
+  background: var(--naranja);
+  color: var(--crema);
+  font-family: var(--font-jp-display), serif;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform 200ms cubic-bezier(0.2, 0.9, 0.25, 1.2);
+}
+.maplibregl-marker:hover .taco-cluster {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--ink);
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+/* ------------------------------------------------------------------
+   Intro choreography — editorial stagger
+   ------------------------------------------------------------------ */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.rise   { animation: rise 700ms cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+.delay-1 { animation-delay: 80ms; }
+.delay-2 { animation-delay: 180ms; }
+.delay-3 { animation-delay: 280ms; }
+.delay-4 { animation-delay: 380ms; }
+
+/* Wavy divider using SVG mask */
+.wavy-divider {
+  height: 10px;
+  background: var(--ink);
+  -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='10' viewBox='0 0 40 10'><path d='M0 5 Q 10 0 20 5 T 40 5' stroke='black' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>");
+          mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='10' viewBox='0 0 40 10'><path d='M0 5 Q 10 0 20 5 T 40 5' stroke='black' stroke-width='2.2' fill='none' stroke-linecap='round'/></svg>");
+  -webkit-mask-repeat: repeat-x;
+          mask-repeat: repeat-x;
+  -webkit-mask-size: 40px 10px;
+          mask-size: 40px 10px;
+}
+
+/* Minimal scrollbar that matches the palette */
+.mercado-scroll::-webkit-scrollbar { width: 8px; }
+.mercado-scroll::-webkit-scrollbar-track { background: transparent; }
+.mercado-scroll::-webkit-scrollbar-thumb {
+  background: var(--naranja);
+  border-radius: 999px;
+  border: 2px solid var(--crema);
 }
 
 @layer base {
@@ -148,5 +258,9 @@ body {
   }
   html {
     @apply font-sans;
+  }
+  h1, h2, h3, h4 {
+    font-family: var(--font-jp-display), "RocknRoll One", serif;
+    letter-spacing: 0.005em;
   }
 }
