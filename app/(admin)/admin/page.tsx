@@ -18,7 +18,7 @@ import {
 } from "@/lib/types";
 import { loadAllRequests, updateRequestStatus } from "@/lib/requests";
 import { loadAllComments, adminDeleteComment, adminRestoreComment } from "@/lib/comments";
-import { loadAllUsers, banUser, unbanUser } from "@/lib/auth";
+import { loadAllUsers, banUser, unbanUser, getCityRanking } from "@/lib/auth";
 import { loadAllReports, deleteReportsForComment } from "@/lib/reports";
 import { getBadge } from "@/lib/badges";
 
@@ -59,7 +59,7 @@ function useAdminAuth() {
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
-type Tab = "dashboard" | "shops" | "requests" | "reports" | "users" | "comments";
+type Tab = "dashboard" | "shops" | "requests" | "reports" | "users" | "comments" | "ranking";
 
 const TAB_CONFIG: { id: Tab; emoji: string; label: string }[] = [
   { id: "dashboard", emoji: "📊", label: "ダッシュボード" },
@@ -68,6 +68,7 @@ const TAB_CONFIG: { id: Tab; emoji: string; label: string }[] = [
   { id: "reports",   emoji: "🚨", label: "通報対応" },
   { id: "users",     emoji: "👥", label: "ユーザー管理" },
   { id: "comments",  emoji: "💬", label: "コメント管理" },
+  { id: "ranking",   emoji: "🏆", label: "地域ランキング" },
 ];
 
 // ─── ヘルパー ─────────────────────────────────────────────────────────────────
@@ -419,6 +420,10 @@ export default function AdminDashboardPage() {
 
             {tab === "comments" && (
               <CommentsTab allComments={allComments} shopById={shopById} onAction={reload} />
+            )}
+
+            {tab === "ranking" && (
+              <RankingTab />
             )}
 
           </main>
@@ -1633,3 +1638,68 @@ function CommentsTab({
     </div>
   );
 }
+
+// ─── RankingTab ───────────────────────────────────────────────────────────────
+
+function RankingTab() {
+  const ranking = getCityRanking();
+  const total = ranking.reduce((s, r) => s + r.count, 0);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="font-display text-ink text-[18px]">地域別タコス好きランキング</h2>
+        <p className="font-serif-it text-[11px] text-naranja-deep mt-0.5">
+          居住地を登録しているユーザー {total} 人
+        </p>
+      </div>
+
+      {ranking.length === 0 ? (
+        <p className="font-serif-it italic text-[13px] text-muted-foreground py-8 text-center">
+          まだ居住地を登録しているユーザーがいません
+        </p>
+      ) : (
+        <div className="bg-crema border-2 border-ink rounded-xl shadow-[2px_2px_0_var(--ink)] overflow-hidden">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b-2 border-ink bg-masa-hi">
+                <th className="font-display text-[11px] text-ink/60 text-left px-4 py-2.5 w-10">#</th>
+                <th className="font-display text-[11px] text-ink/60 text-left px-4 py-2.5">地域</th>
+                <th className="font-display text-[11px] text-ink/60 text-right px-4 py-2.5">人数</th>
+                <th className="font-display text-[11px] text-ink/60 text-right px-4 py-2.5 w-28">割合</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ranking.map(({ city, count }, i) => {
+                const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+                return (
+                  <tr key={city} className="border-b border-ink/10 hover:bg-masa-lo transition-colors">
+                    <td className="px-4 py-3">
+                      <span className={`font-display text-[14px] ${i === 0 ? "text-naranja" : i === 1 ? "text-ink/60" : i === 2 ? "text-ink/40" : "text-ink/25"}`}>
+                        {i + 1}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 font-display text-[14px] text-ink">{city}</td>
+                    <td className="px-4 py-3 font-mono text-[14px] text-naranja font-bold text-right">{count} 人</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-16 h-2 bg-ink/10 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-naranja rounded-full transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        <span className="font-mono text-[11px] text-ink/50 w-8 text-right">{pct}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
