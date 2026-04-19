@@ -239,6 +239,7 @@ export function ShopDetailPanel({
                     }`}
                   >
                     <span className="text-base leading-none">{emoji}</span>
+                    <span className="text-[12px]">{label}</span>
                     {count > 0 && (
                       <span className={`text-[11px] font-bold ${pressed ? "text-crema" : "text-ink/60"}`}>
                         {count}
