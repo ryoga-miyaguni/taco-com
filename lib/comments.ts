@@ -1,4 +1,4 @@
-import type { AvatarKey, Comment } from "./types";
+import type { AvatarKey, Comment, SliderRatings } from "./types";
 import { deleteLikesForComment } from "./likes";
 import { deleteReportsForComment } from "./reports";
 
@@ -16,7 +16,12 @@ export function loadAllComments(): Comment[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as Comment[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    // 旧フォーマット（rating フィールド）は sliderRatings: null に正規化
+    return parsed.map((c: Comment & { rating?: unknown }) => {
+      const { rating: _rating, ...rest } = c;
+      return { ...rest, sliderRatings: rest.sliderRatings ?? null } as Comment;
+    });
   } catch {
     return [];
   }
@@ -43,15 +48,28 @@ export function loadReplies(parentId: string): Comment[] {
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
 
-/** コメント投稿（トップレベル） */
+/** 同店舗に同ユーザーが既に投稿済みかチェック */
+export function findExistingComment(shopId: string, userId: string): Comment | null {
+  return (
+    loadAllComments().find(
+      (c) => c.shopId === shopId && c.userId === userId && c.parentId === null
+    ) ?? null
+  );
+}
+
+/** コメント投稿（トップレベル）— 同一ユーザーの重複投稿はエラー */
 export function addComment(input: {
   shopId: string;
   userId: string;
   nickname: string;
   avatarKey: AvatarKey;
   body: string;
-  rating: number;
+  sliderRatings: SliderRatings;
 }): Comment {
+  const existing = findExistingComment(input.shopId, input.userId);
+  if (existing) {
+    throw new Error("DUPLICATE_COMMENT");
+  }
   const now = new Date().toISOString();
   const comment: Comment = {
     id: crypto.randomUUID(),
@@ -60,7 +78,7 @@ export function addComment(input: {
     nickname: input.nickname,
     avatarKey: input.avatarKey,
     body: input.body.trim(),
-    rating: input.rating,
+    sliderRatings: input.sliderRatings,
     parentId: null,
     likeCount: 0,
     isHidden: false,
@@ -91,7 +109,7 @@ export function addReply(input: {
     nickname: input.nickname,
     avatarKey: input.avatarKey,
     body: input.body.trim(),
-    rating: null,
+    sliderRatings: null,
     parentId: input.parentId,
     likeCount: 0,
     isHidden: false,
@@ -105,12 +123,23 @@ export function addReply(input: {
   return reply;
 }
 
-/** コメント編集（自分のコメントのみ） */
-export function editComment(id: string, userId: string, body: string): boolean {
+/** コメント編集（自分のコメントのみ）— isEdited フラグを立てる */
+export function editComment(
+  id: string,
+  userId: string,
+  body: string,
+  sliderRatings?: SliderRatings
+): boolean {
   const all = loadAllComments();
   const idx = all.findIndex((c) => c.id === id && c.userId === userId);
   if (idx === -1) return false;
-  all[idx] = { ...all[idx], body: body.trim(), updatedAt: new Date().toISOString() };
+  all[idx] = {
+    ...all[idx],
+    body: body.trim(),
+    ...(sliderRatings !== undefined ? { sliderRatings } : {}),
+    isEdited: true,
+    updatedAt: new Date().toISOString(),
+  };
   saveAllComments(all);
   return true;
 }
@@ -121,7 +150,6 @@ export function deleteComment(id: string, userId: string): void {
   const all = loadAllComments();
   const target = all.find((c) => c.id === id && c.userId === userId);
   if (!target) return;
-  // 返信も含めて対象コメントIDを収集
   const idsToDelete = new Set([id, ...all.filter((c) => c.parentId === id).map((c) => c.id)]);
   saveAllComments(all.filter((c) => !idsToDelete.has(c.id)));
   idsToDelete.forEach((cid) => {

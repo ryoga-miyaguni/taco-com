@@ -4,17 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Supercluster from "supercluster";
-import type { Shop } from "@/lib/types";
-import { SHOP_TYPE_COLOR } from "@/lib/types";
+import { SHOP_TYPE_COLOR, AVATAR_EMOJI, getShopId, type Shop, type FavoriteType } from "@/lib/types";
 import { ShopDetailPanel } from "./ShopDetailPanel";
 import { TypeFilter } from "./TypeFilter";
 import { ShopSearchBar } from "./ShopSearchBar";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./AuthProvider";
-import { AVATAR_EMOJI } from "@/lib/types";
-import { getAllFavoriteShopIds } from "@/lib/favorites";
-import { getShopId } from "@/lib/types";
+import { getShopIdsByFavoriteType } from "@/lib/favorites";
 
 const OKINAWA_CENTER: [number, number] = [127.85, 26.45];
 const INITIAL_ZOOM = 9.2;
@@ -31,7 +28,7 @@ export function MapView({ shops }: { shops: Shop[] }) {
     new Set(["okinawa", "mexican"]),
   );
   const [mapReady, setMapReady] = useState(false);
-  const [favOnly, setFavOnly] = useState(false);
+  const [favFilter, setFavFilter] = useState<FavoriteType | null>(null);
   const { user, logout, openAuthModal } = useAuth();
 
   useEffect(() => {
@@ -75,7 +72,9 @@ export function MapView({ shops }: { shops: Shop[] }) {
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
-    const favIds = favOnly && user ? getAllFavoriteShopIds(user.id) : null;
+    const favIds = favFilter && user
+      ? getShopIdsByFavoriteType(user.id, favFilter)
+      : null;
     const visible = shops.filter(
       (s) =>
         activeTypes.has(s.type) &&
@@ -172,7 +171,7 @@ export function MapView({ shops }: { shops: Shop[] }) {
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
     };
-  }, [shops, activeTypes, favOnly, user, mapReady]);
+  }, [shops, activeTypes, favFilter, user, mapReady]);
 
   const handleSelectFromSearch = (shop: Shop) => {
     const map = mapRef.current;
@@ -194,13 +193,13 @@ export function MapView({ shops }: { shops: Shop[] }) {
     });
   };
 
-  const toggleFavOnly = () => setFavOnly((v) => !v);
-
-  const favIds = favOnly && user ? getAllFavoriteShopIds(user.id) : null;
+  const visibleFavIds = favFilter && user
+    ? getShopIdsByFavoriteType(user.id, favFilter)
+    : null;
   const visibleCount = shops.filter(
     (s) =>
       activeTypes.has(s.type) &&
-      (favIds === null || favIds.has(getShopId(s))),
+      (visibleFavIds === null || visibleFavIds.has(getShopId(s))),
   ).length;
 
   return (
@@ -226,8 +225,8 @@ export function MapView({ shops }: { shops: Shop[] }) {
           <TypeFilter
             active={activeTypes}
             onToggle={toggleType}
-            favOnly={favOnly}
-            onToggleFav={toggleFavOnly}
+            favFilter={favFilter}
+            onSetFavFilter={setFavFilter}
           />
         </div>
       </div>
@@ -283,7 +282,7 @@ export function MapView({ shops }: { shops: Shop[] }) {
       </div>
 
       {/* Bottom-right: FAB — mobile only */}
-      <div className="sm:hidden absolute bottom-22 right-4 z-20">
+      <div className="sm:hidden absolute bottom-36 right-4 z-20">
         <UserFab />
       </div>
 
@@ -456,7 +455,7 @@ function UserFab() {
         aria-label="ユーザーメニュー"
         aria-expanded={open}
         onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); setOpen((v) => !v); }}
-        className={`w-12 h-12 rounded-full border-[3px] border-ink flex items-center justify-center text-xl shadow-[3px_3px_0_var(--ink)] transition-all active:translate-x-px active:translate-y-px active:shadow-[1px_1px_0_var(--ink)] ${
+        className={`w-14 h-14 rounded-full border-[3px] border-ink flex items-center justify-center text-2xl shadow-[3px_3px_0_var(--ink)] transition-all active:translate-x-px active:translate-y-px active:shadow-[1px_1px_0_var(--ink)] ${
           open
             ? "bg-naranja text-crema"
             : "bg-crema text-ink"

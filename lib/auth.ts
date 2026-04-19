@@ -10,6 +10,7 @@ import type {
   User,
 } from "./types";
 
+
 const USERS_KEY = "taco-com:users:v1";
 const SESSION_KEY = "taco-com:session:v1";
 
@@ -77,6 +78,7 @@ export type RegisterInput = {
   shopGoals?: ShopGoal[];
   frequentArea?: FrequentArea;
   companionType?: CompanionType;
+  residenceCity?: string;
 };
 
 /** ユーザー登録。displayName が既に使われていたらエラーを返す */
@@ -104,6 +106,7 @@ export function register(input: RegisterInput): { user: User } | { error: string
     shopGoals: input.shopGoals,
     frequentArea: input.frequentArea,
     companionType: input.companionType,
+    residenceCity: input.residenceCity,
   };
 
   saveUsers([...users, user]);
@@ -177,4 +180,18 @@ export function updateMaxLikes(userId: string, currentTotal: number): void {
 export function getUserById(userId: string): User | null {
   const users = loadUsers();
   return users.find((u) => u.id === userId) ?? null;
+}
+
+/** 地域別ユーザー数ランキング（管理画面用） */
+export function getCityRanking(): { city: string; count: number }[] {
+  const users = loadUsers();
+  const counts: Record<string, number> = {};
+  for (const u of users) {
+    if (u.residenceCity) {
+      counts[u.residenceCity] = (counts[u.residenceCity] ?? 0) + 1;
+    }
+  }
+  return Object.entries(counts)
+    .map(([city, count]) => ({ city, count }))
+    .sort((a, b) => b.count - a.count);
 }

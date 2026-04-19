@@ -1,6 +1,7 @@
 import demoData from "@/data/demo-shops.json";
-import type { Shop } from "./types";
+import type { Shop, SliderRatings } from "./types";
 import { getShopId } from "./types";
+import { loadAllComments } from "./comments";
 
 const APPROVED_SHOPS_KEY = "taco-com:approved-shops:v1";
 const SHOP_OVERRIDES_KEY  = "taco-com:shop-overrides:v1";
@@ -67,4 +68,28 @@ export function getShops(): Shop[] {
   const demos    = applyOverrides(demoData.shops as Shop[], overrides);
   const approved = applyOverrides(loadApprovedShops(), overrides);
   return [...demos, ...approved];
+}
+
+/** 店舗のスライダー評価の平均を返す（評価なしは null） */
+export function getAverageSliderRatings(shopId: string): SliderRatings | null {
+  const comments = loadAllComments().filter(
+    (c) => c.shopId === shopId && c.parentId === null && c.sliderRatings !== null
+  );
+  if (comments.length === 0) return null;
+
+  const sum = { texture: 0, style: 0, volume: 0, atmosphere: 0 };
+  for (const c of comments) {
+    const r = c.sliderRatings!;
+    sum.texture += r.texture;
+    sum.style += r.style;
+    sum.volume += r.volume;
+    sum.atmosphere += r.atmosphere;
+  }
+  const n = comments.length;
+  return {
+    texture:    Math.round(sum.texture / n) as 1 | 2 | 3 | 4,
+    style:      Math.round(sum.style / n) as 1 | 2 | 3 | 4,
+    volume:     Math.round(sum.volume / n) as 1 | 2 | 3 | 4,
+    atmosphere: Math.round(sum.atmosphere / n) as 1 | 2 | 3 | 4,
+  };
 }

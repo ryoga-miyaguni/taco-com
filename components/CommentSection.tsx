@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Comment, ReportReason } from "@/lib/types";
-import { AVATAR_EMOJI, REPORT_REASON_LABEL } from "@/lib/types";
+import type { Comment, ReportReason, SliderRatings } from "@/lib/types";
+import { AVATAR_EMOJI, REPORT_REASON_LABEL, SLIDER_RATING_DEF } from "@/lib/types";
 import {
   addComment,
   addReply,
   deleteComment,
   editComment,
+  findExistingComment,
   loadCommentsForShop,
   loadReplies,
 } from "@/lib/comments";
@@ -18,21 +19,34 @@ import { getUserById } from "@/lib/auth";
 import { hasReported, reportComment } from "@/lib/reports";
 
 const MAX_BODY = 200;
+const DEFAULT_SLIDER: SliderRatings = { texture: 2, style: 2, volume: 2, atmosphere: 2 };
 
-export function CommentSection({ shopId }: { shopId: string }) {
+export function CommentSection({
+  shopId,
+  onRatingsChanged,
+}: {
+  shopId: string;
+  onRatingsChanged?: () => void;
+}) {
   const { user, requireAuth } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [body, setBody] = useState("");
-  const [rating, setRating] = useState(5);
+  const [sliderRatings, setSliderRatings] = useState<SliderRatings>(DEFAULT_SLIDER);
   const [error, setError] = useState<string | null>(null);
+  const [existingComment, setExistingComment] = useState<Comment | null>(null);
 
   const reloadLikes = () =>
     setLikedIds(user ? getLikedCommentIds(user.id) : new Set());
 
   const reload = () => {
-    setComments(loadCommentsForShop(shopId));
+    const loaded = loadCommentsForShop(shopId);
+    setComments(loaded);
     reloadLikes();
+    setExistingComment(
+      user ? (findExistingComment(shopId, user.id) ?? null) : null
+    );
+    onRatingsChanged?.();
   };
 
   useEffect(() => {
@@ -42,26 +56,31 @@ export function CommentSection({ shopId }: { shopId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId, user]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!requireAuth()) return;
 
     const trimmed = body.trim();
-    if (!trimmed) { setError("コメントを入力してください"); return; }
     if (trimmed.length > MAX_BODY) { setError(`${MAX_BODY}文字以内で入力してください`); return; }
 
-    addComment({
-      shopId,
-      userId: user!.id,
-      nickname: user!.displayName,
-      avatarKey: user!.avatarKey,
-      body: trimmed,
-      rating,
-    });
-    setBody("");
-    setRating(5);
-    setError(null);
-    reload();
+    try {
+      addComment({
+        shopId,
+        userId: user!.id,
+        nickname: user!.displayName,
+        avatarKey: user!.avatarKey,
+        body: trimmed,
+        sliderRatings,
+      });
+      setBody("");
+      setSliderRatings(DEFAULT_SLIDER);
+      setError(null);
+      reload();
+    } catch (err) {
+      if (err instanceof Error && err.message === "DUPLICATE_COMMENT") {
+        setError("この店舗にはすでに口コミを投稿しています");
+      }
+    }
   };
 
   return (
@@ -80,35 +99,41 @@ export function CommentSection({ shopId }: { shopId: string }) {
         className="mt-3 bg-masa-hi border-2 border-ink rounded-lg p-3 space-y-2 shadow-[3px_3px_0_var(--ink)]"
       >
         {user ? (
-          <>
-            <div className="flex items-center gap-2">
-              <span className="text-lg leading-none">{AVATAR_EMOJI[user.avatarKey]}</span>
-              <span className="font-display text-[13px] text-ink">{user.displayName}</span>
-              <StarPicker value={rating} onChange={setRating} />
-            </div>
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="味の感想、おすすめメニューなど…"
-              rows={3}
-              maxLength={MAX_BODY}
-              className="w-full resize-none bg-crema border-2 border-ink rounded-lg px-3 py-2 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
-            />
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-mono text-muted-foreground">
-                {body.length}/{MAX_BODY}
-              </span>
-              {error && (
-                <span className="text-[11px] text-salsa font-bold">{error}</span>
-              )}
-              <button
-                type="submit"
-                className="font-display text-[13px] px-5 h-9 rounded-full bg-naranja text-crema border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] transition-all"
-              >
-                投稿 →
-              </button>
-            </div>
-          </>
+          existingComment ? (
+            <p className="text-[12px] text-ink/60 font-serif-it italic text-center py-2">
+              口コミ投稿済み — 下のカードから編集できます ✏️
+            </p>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-lg leading-none">{AVATAR_EMOJI[user.avatarKey]}</span>
+                <span className="font-display text-[13px] text-ink">{user.displayName}</span>
+              </div>
+              <SliderRatingPicker value={sliderRatings} onChange={setSliderRatings} />
+              <textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="感想・コメント（任意）"
+                rows={3}
+                maxLength={MAX_BODY}
+                className="w-full resize-none bg-crema border-2 border-ink rounded-lg px-3 py-2 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-mono text-muted-foreground">
+                  {body.length}/{MAX_BODY}
+                </span>
+                {error && (
+                  <span className="text-[11px] text-salsa font-bold">{error}</span>
+                )}
+                <button
+                  type="submit"
+                  className="font-display text-[13px] px-5 h-9 rounded-full bg-naranja text-crema border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] transition-all"
+                >
+                  投稿 →
+                </button>
+              </div>
+            </>
+          )
         ) : (
           <button
             type="button"
@@ -161,7 +186,6 @@ function CommentCard({
   const { user, requireAuth } = useAuth();
   const isOwner = !!user && user.id === c.userId;
 
-  // 著者のバッジ
   const author = getUserById(c.userId);
   const badge = author ? getBadge(author.maxLikes) : null;
 
@@ -185,6 +209,9 @@ function CommentCard({
 
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(c.body);
+  const [editSlider, setEditSlider] = useState<SliderRatings>(
+    c.sliderRatings ?? DEFAULT_SLIDER
+  );
   const [replyOpen, setReplyOpen] = useState(false);
   const [replies, setReplies] = useState<Comment[]>([]);
   const [showReplies, setShowReplies] = useState(false);
@@ -206,8 +233,7 @@ function CommentCard({
   const handleEditSave = () => {
     if (!user) return;
     const trimmed = editBody.trim();
-    if (!trimmed) return;
-    editComment(c.id, user.id, trimmed);
+    editComment(c.id, user.id, trimmed, editSlider);
     setEditing(false);
     onChanged();
   };
@@ -220,32 +246,32 @@ function CommentCard({
       style={{ transform: `rotate(${rotate})` }}
     >
       {/* 著者行 */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="h-6 w-6 rounded-full bg-naranja text-crema border-2 border-ink flex items-center justify-center text-[13px] shrink-0">
-            {AVATAR_EMOJI[c.avatarKey]}
+      <div className="flex items-center gap-2">
+        <span className="h-7 w-7 rounded-full bg-naranja text-crema border-2 border-ink flex items-center justify-center text-[14px] shrink-0">
+          {AVATAR_EMOJI[c.avatarKey]}
+        </span>
+        <span className="font-display text-[14px] text-ink truncate">{c.nickname}</span>
+        {badge && (
+          <span title={`${badge.label} — ${badge.description}`} className="text-base leading-none shrink-0">
+            {badge.emoji}
           </span>
-          <span className="font-display text-[13px] text-ink truncate">{c.nickname}</span>
-          {badge && (
-            <span
-              title={`${badge.label} — ${badge.description}`}
-              className="text-base leading-none shrink-0"
-            >
-              {badge.emoji}
-            </span>
-          )}
-        </div>
-        {c.rating !== null && (
-          <span className="text-[12px] shrink-0 tracking-tight">
-            <span className="text-naranja">{"★".repeat(c.rating)}</span>
-            <span className="text-ink/25">{"★".repeat(5 - c.rating)}</span>
+        )}
+        {c.isEdited && (
+          <span className="ml-auto shrink-0 text-[10px] font-mono text-ink/40 border border-ink/20 rounded px-1.5 py-0.5">
+            編集済み
           </span>
         )}
       </div>
 
+      {/* スライダー評価表示 */}
+      {c.sliderRatings && !editing && (
+        <SliderRatingsDisplay ratings={c.sliderRatings} />
+      )}
+
       {/* 本文 */}
       {editing ? (
-        <div className="mt-2 space-y-1">
+        <div className="mt-2 space-y-2">
+          <SliderRatingPicker value={editSlider} onChange={setEditSlider} />
           <textarea
             value={editBody}
             onChange={(e) => setEditBody(e.target.value)}
@@ -271,10 +297,12 @@ function CommentCard({
             </button>
           </div>
         </div>
-      ) : (
-        <p className="mt-1.5 text-[13px] text-ink whitespace-pre-wrap wrap-break-word leading-snug">
+      ) : c.body ? (
+        <p className="mt-1.5 text-[14px] text-ink whitespace-pre-wrap wrap-break-word leading-snug">
           {c.body}
         </p>
+      ) : (
+        <p className="mt-1 text-[12px] font-serif-it italic text-ink/40">コメントなし</p>
       )}
 
       {/* フッター */}
@@ -282,9 +310,7 @@ function CommentCard({
         <div className="flex items-center gap-2">
           <p className="text-[10px] font-mono text-muted-foreground">
             {formatDate(c.createdAt)}
-            {c.updatedAt !== c.createdAt && " (編集済)"}
           </p>
-          {/* いいねボタン（自分のコメントは無効） */}
           <button
             type="button"
             onClick={handleLike}
@@ -304,7 +330,6 @@ function CommentCard({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* 返信ボタン */}
           <button
             type="button"
             onClick={() => {
@@ -317,12 +342,15 @@ function CommentCard({
             返信
           </button>
 
-          {/* 編集・削除（自分のみ） */}
           {isOwner && !editing && (
             <>
               <button
                 type="button"
-                onClick={() => setEditing(true)}
+                onClick={() => {
+                  setEditBody(c.body);
+                  setEditSlider(c.sliderRatings ?? DEFAULT_SLIDER);
+                  setEditing(true);
+                }}
                 className="text-[11px] font-bold px-3 h-7 rounded-full border-2 border-ink/20 text-ink/50 hover:border-ink hover:text-ink transition-colors"
               >
                 編集
@@ -337,7 +365,6 @@ function CommentCard({
             </>
           )}
 
-          {/* 通報（自分以外） */}
           {!isOwner && (
             <button
               type="button"
@@ -359,7 +386,6 @@ function CommentCard({
         </div>
       </div>
 
-      {/* 返信フォーム */}
       {replyOpen && user && (
         <ReplyForm
           shopId={shopId}
@@ -372,7 +398,6 @@ function CommentCard({
         />
       )}
 
-      {/* 返信一覧トグル */}
       {replyCount > 0 && (
         <div className="mt-2 pl-3 border-l-2 border-dashed border-ink/30">
           <button
@@ -392,7 +417,6 @@ function CommentCard({
         </div>
       )}
 
-      {/* 通報理由モーダル */}
       {reportModalOpen && (
         <ReportModal
           onSubmit={handleReportSubmit}
@@ -418,7 +442,7 @@ function ReplyForm({
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) return;
     const trimmed = body.trim();
@@ -483,6 +507,9 @@ function ReplyCard({ reply: r, onChanged }: { reply: Comment; onChanged: () => v
       <div className="flex items-center gap-2">
         <span className="text-sm leading-none">{AVATAR_EMOJI[r.avatarKey]}</span>
         <span className="font-display text-[12px] text-ink">{r.nickname}</span>
+        {r.isEdited && (
+          <span className="text-[10px] font-mono text-ink/40 border border-ink/20 rounded px-1 py-0.5">編集済み</span>
+        )}
         <span className="ml-auto text-[10px] font-mono text-muted-foreground">
           {formatDate(r.createdAt)}
         </span>
@@ -570,22 +597,79 @@ function ReportModal({
   );
 }
 
-// ─── StarPicker ───────────────────────────────────────────────────────────────
+// ─── SliderRatingPicker ───────────────────────────────────────────────────────
 
-function StarPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+function SliderRatingPicker({
+  value,
+  onChange,
+}: {
+  value: SliderRatings;
+  onChange: (v: SliderRatings) => void;
+}) {
   return (
-    <div className="flex items-center gap-0.5 shrink-0 ml-auto bg-crema border-2 border-ink rounded-full px-2 h-9">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button
-          key={n}
-          type="button"
-          onClick={() => onChange(n)}
-          aria-label={`${n}つ星`}
-          className={`text-base leading-none transition-transform hover:scale-110 ${n <= value ? "text-naranja" : "text-(--ink)/20"}`}
-        >
-          ★
-        </button>
-      ))}
+    <div className="bg-crema border-2 border-ink rounded-lg px-3 py-3 space-y-4">
+      {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
+        const val = value[key];
+        return (
+          <div key={key}>
+            {/* ラベル行 */}
+            <div className="mb-2">
+              <span className="text-[13px] font-display text-ink font-bold">{label}</span>
+            </div>
+            {/* セレクター行 */}
+            <div className="flex items-center gap-3">
+              <span className="text-[12px] font-display text-ink/80 shrink-0 w-14 text-right leading-tight">{left}</span>
+              <div className="flex gap-2 flex-1 justify-between">
+                {([1, 2, 3, 4] as const).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => onChange({ ...value, [key]: n })}
+                    aria-label={n <= 2 ? `${left}側 ${n}` : `${right}側 ${n}`}
+                    className={`h-8 w-8 rounded-full border-2 transition-all duration-150 ${
+                      n === val
+                        ? "bg-naranja border-ink shadow-[2px_2px_0_var(--ink)] scale-115"
+                        : "bg-crema border-ink/25 hover:border-naranja/70 hover:bg-naranja/10"
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-[12px] font-display text-ink/80 shrink-0 w-14 leading-tight">{right}</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── SliderRatingsDisplay ─────────────────────────────────────────────────────
+
+function SliderRatingsDisplay({ ratings }: { ratings: SliderRatings }) {
+  return (
+    <div className="mt-2 bg-masa-lo border border-ink/20 rounded-lg px-3 py-2.5 space-y-2.5">
+      {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
+        const val = ratings[key];
+        return (
+          <div key={key} className="space-y-1">
+            <span className="font-serif-it italic text-[12px] tracking-[0.12em] text-naranja-deep block text-center">{label}</span>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-[12px] font-display font-bold text-ink w-16 text-right shrink-0 leading-tight">{left}</span>
+              <div className="flex gap-1.5 shrink-0">
+                {([1, 2, 3, 4] as const).map((n) => (
+                  <div
+                    key={n}
+                    className={`h-3.5 w-3.5 rounded-full border-2 ${
+                      n === val ? "bg-naranja border-ink shadow-[1px_1px_0_var(--ink)]" : "bg-crema border-ink/30"
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-[12px] font-display font-bold text-ink w-16 shrink-0 leading-tight">{right}</span>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

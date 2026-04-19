@@ -7,28 +7,30 @@ import { Pencil, Check, X } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { loadAllComments } from "@/lib/comments";
 import { getBadge, BADGES } from "@/lib/badges";
-import { getVisitedCount } from "@/lib/favorites";
+import { getVisitedCount, getShopIdsByFavoriteType } from "@/lib/favorites";
 import { loadRequestsByUser } from "@/lib/requests";
 import { getShops } from "@/lib/shops";
 import { getShopId } from "@/lib/types";
 import {
   AVATAR_EMOJI,
   COMPANION_LABEL,
+  FAVORITE_TYPE_LABEL,
   FREQUENT_AREA_LABEL,
-  RESIDENCE_LABEL,
+  OKINAWA_CITIES,
   SHELL_LABEL,
   SHOP_GOAL_LABEL,
   SPICE_LABEL,
   TRANSPORT_LABEL,
   type CompanionType,
+  type FavoriteType,
   type FrequentArea,
-  type Residence,
   type ShellPreference,
   type ShopGoal,
   type SpiceLevel,
   type Transport,
 } from "@/lib/types";
-import type { Comment, ShopRequest } from "@/lib/types";
+import type { Comment, Shop, ShopRequest, SliderRatings } from "@/lib/types";
+import { SLIDER_RATING_DEF } from "@/lib/types";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -103,16 +105,22 @@ export default function ProfilePage() {
   const [visitedCount, setVisitedCount] = useState(0);
   const [editMode, setEditMode] = useState(false);
   const [shopNameById, setShopNameById] = useState<Record<string, string>>({});
+  const [shopsByFavType, setShopsByFavType] = useState<Record<FavoriteType, Shop[]>>({
+    want_to_try: [], visited: [], want_again: [],
+  });
+  const [favTab, setFavTab] = useState<FavoriteType>("want_to_try");
 
   // 編集フォームの状態
   const [birthYear, setBirthYear] = useState("");
-  const [residence, setResidence] = useState<Residence | "">("");
   const [transport, setTransport] = useState<Transport | "">("");
   const [shellPreference, setShellPreference] = useState<ShellPreference | "">("");
   const [spiceLevel, setSpiceLevel] = useState<SpiceLevel | "">("");
   const [shopGoals, setShopGoals] = useState<ShopGoal[]>([]);
   const [frequentArea, setFrequentArea] = useState<FrequentArea | "">("");
   const [companionType, setCompanionType] = useState<CompanionType | "">("");
+  const [residenceCity, setResidenceCity] = useState("");
+  const [cityQuery, setCityQuery] = useState("");
+  const [cityOpen, setCityOpen] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -131,9 +139,18 @@ export default function ProfilePage() {
     );
     setMyRequests(loadRequestsByUser(user.id));
     setVisitedCount(getVisitedCount(user.id));
+    const allShops = getShops();
     const m: Record<string, string> = {};
-    getShops().forEach((s) => { m[getShopId(s)] = s.name; });
+    allShops.forEach((s) => { m[getShopId(s)] = s.name; });
     setShopNameById(m);
+    const favTypes: FavoriteType[] = ["want_to_try", "visited", "want_again"];
+    const byType = Object.fromEntries(
+      favTypes.map((t) => {
+        const ids = getShopIdsByFavoriteType(user.id, t);
+        return [t, allShops.filter((s) => ids.has(getShopId(s)))];
+      }),
+    ) as Record<FavoriteType, Shop[]>;
+    setShopsByFavType(byType);
   }, [user]);
 
   if (isLoading || !user) return null;
@@ -144,13 +161,14 @@ export default function ProfilePage() {
 
   const openEdit = () => {
     setBirthYear(user.birthYear?.toString() ?? "");
-    setResidence(user.residence ?? "");
     setTransport(user.transport ?? "");
     setShellPreference(user.shellPreference ?? "");
     setSpiceLevel(user.spiceLevel ?? "");
     setShopGoals(user.shopGoals ?? []);
     setFrequentArea(user.frequentArea ?? "");
     setCompanionType(user.companionType ?? "");
+    setResidenceCity(user.residenceCity ?? "");
+    setCityQuery("");
     setEditError(null);
     setEditMode(true);
   };
@@ -164,13 +182,13 @@ export default function ProfilePage() {
     }
     updateUser({
       birthYear: birthYear ? year : undefined,
-      residence: residence || undefined,
       transport: transport || undefined,
       shellPreference: shellPreference || undefined,
       spiceLevel: spiceLevel || undefined,
       shopGoals: shopGoals.length > 0 ? shopGoals : undefined,
       frequentArea: frequentArea || undefined,
       companionType: companionType || undefined,
+      residenceCity: residenceCity || undefined,
     });
     setEditMode(false);
   };
@@ -266,8 +284,8 @@ export default function ProfilePage() {
                 {age !== null && (
                   <ProfileTag>🎂 {age}歳</ProfileTag>
                 )}
-                {user.residence && (
-                  <ProfileTag>{RESIDENCE_LABEL[user.residence]}</ProfileTag>
+                {user.residenceCity && (
+                  <ProfileTag>🏠 {user.residenceCity}</ProfileTag>
                 )}
                 {user.transport && (
                   <ProfileTag>{TRANSPORT_LABEL[user.transport]}</ProfileTag>
@@ -315,17 +333,46 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* 居住属性 */}
+              {/* 居住地（市町村） */}
               <div>
                 <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
-                  あなたはどっち？
+                  住んでいる地域
+                  <span className="ml-1 normal-case tracking-normal text-ink/50">（任意）</span>
                 </label>
-                <div className="flex gap-2">
-                  {(Object.keys(RESIDENCE_LABEL) as Residence[]).map((r) => (
-                    <ChoiceBtn key={r} selected={residence === r} onClick={() => setResidence(r)}>
-                      {RESIDENCE_LABEL[r]}
-                    </ChoiceBtn>
-                  ))}
+                <div className="relative">
+                  <div className="flex items-center gap-2 w-full bg-white border-2 border-ink rounded-full px-4 h-9 focus-within:ring-2 focus-within:ring-naranja">
+                    {residenceCity && !cityOpen ? (
+                      <>
+                        <span className="flex-1 text-[13px] text-ink">{residenceCity}</span>
+                        <button type="button" onClick={() => { setResidenceCity(""); }} className="text-ink/40 hover:text-ink text-[12px]">✕</button>
+                      </>
+                    ) : (
+                      <input
+                        type="text"
+                        value={cityQuery}
+                        onChange={(e) => { setCityQuery(e.target.value); setCityOpen(true); }}
+                        onFocus={() => setCityOpen(true)}
+                        onBlur={() => setTimeout(() => setCityOpen(false), 150)}
+                        placeholder={residenceCity || "市町村名で検索…"}
+                        className="flex-1 bg-transparent text-[13px] outline-none"
+                      />
+                    )}
+                  </div>
+                  {cityOpen && (
+                    <ul className="absolute z-50 top-full mt-1 w-full bg-crema border-2 border-ink rounded-xl shadow-[3px_3px_0_var(--ink)] max-h-40 overflow-y-auto">
+                      {OKINAWA_CITIES.filter((c) => !cityQuery.trim() || c.includes(cityQuery.trim())).map((city) => (
+                        <li key={city}>
+                          <button
+                            type="button"
+                            onMouseDown={() => { setResidenceCity(city); setCityQuery(""); setCityOpen(false); }}
+                            className={`w-full text-left px-4 py-2 text-[13px] font-display hover:bg-naranja hover:text-crema transition-colors ${city === residenceCity ? "bg-masa-hi font-bold" : ""}`}
+                          >
+                            {city}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
 
@@ -461,6 +508,53 @@ export default function ProfilePage() {
           )}
         </section>
 
+        {/* お気に入り */}
+        <section>
+          <h2 className="font-display text-ink text-lg mb-3 flex items-center gap-2">
+            お気に入り
+            <span className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep">
+              Favoritos
+            </span>
+          </h2>
+          {/* タブ */}
+          <div className="flex border-2 border-ink rounded-xl overflow-hidden mb-3">
+            {(["want_to_try", "visited", "want_again"] as FavoriteType[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFavTab(t)}
+                className={`flex-1 py-2 text-[11px] font-display transition-colors leading-tight ${
+                  favTab === t ? "bg-naranja text-crema" : "bg-crema text-ink hover:bg-masa-hi"
+                }`}
+              >
+                {FAVORITE_TYPE_LABEL[t]}
+                <span className="ml-1 opacity-70">({shopsByFavType[t].length})</span>
+              </button>
+            ))}
+          </div>
+          {/* リスト */}
+          {shopsByFavType[favTab].length === 0 ? (
+            <p className="text-center font-serif-it italic text-[13px] text-muted-foreground py-6">
+              まだ登録したお店がありません
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {shopsByFavType[favTab].map((s) => (
+                <li
+                  key={getShopId(s)}
+                  className="bg-crema border-2 border-ink rounded-xl px-4 py-3 shadow-[2px_2px_0_var(--ink)] flex items-center gap-3"
+                >
+                  <span className="text-xl leading-none shrink-0">🌮</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-display text-[14px] text-ink truncate">{s.name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{s.address}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
         {/* バッジ進捗 */}
         <section>
           <h2 className="font-display text-ink text-lg mb-3 flex items-center gap-2">
@@ -528,10 +622,9 @@ export default function ProfilePage() {
                       {shopNameById[c.shopId] ?? c.shopId.split("@")[0]}
                     </p>
                     <div className="flex items-center gap-2 shrink-0">
-                      {c.rating !== null && (
-                        <span className="text-[12px]">
-                          <span className="text-naranja">{"★".repeat(c.rating)}</span>
-                          <span className="text-(--ink)/20">{"★".repeat(5 - c.rating)}</span>
+                      {c.isEdited && (
+                        <span className="text-[10px] font-mono text-ink/40 border border-ink/20 rounded px-1 py-0.5">
+                          編集済み
                         </span>
                       )}
                       <span className="text-[11px] font-bold text-ink/50">
@@ -539,7 +632,14 @@ export default function ProfilePage() {
                       </span>
                     </div>
                   </div>
-                  <p className="text-[13px] text-ink leading-snug line-clamp-3">{c.body}</p>
+                  {c.sliderRatings && (
+                    <MiniSliderDisplay ratings={c.sliderRatings} />
+                  )}
+                  {c.body ? (
+                    <p className="mt-1.5 text-[13px] text-ink leading-snug line-clamp-3">{c.body}</p>
+                  ) : (
+                    <p className="mt-1.5 text-[11px] font-serif-it italic text-ink/40">コメントなし</p>
+                  )}
                   <p className="mt-1.5 text-[10px] font-mono text-muted-foreground">
                     {formatDate(c.createdAt)}
                   </p>
@@ -603,6 +703,28 @@ export default function ProfilePage() {
           </button>
         </div>
       </main>
+    </div>
+  );
+}
+
+function MiniSliderDisplay({ ratings }: { ratings: SliderRatings }) {
+  return (
+    <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1">
+      {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
+        const val = ratings[key];
+        const leanText = val <= 2 ? left : right;
+        return (
+          <div key={key} className="flex items-center gap-1.5">
+            <span className="text-[9px] font-display font-bold text-ink w-10 shrink-0">{label}</span>
+            <div className="flex gap-0.5 shrink-0">
+              {([1, 2, 3, 4] as const).map((n) => (
+                <div key={n} className={`h-1.5 w-1.5 rounded-full ${n <= val ? "bg-naranja" : "bg-ink/15"}`} />
+              ))}
+            </div>
+            <span className="text-[9px] text-ink/45 truncate">{leanText}寄り</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

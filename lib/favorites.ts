@@ -12,7 +12,12 @@ function loadAll(): Favorite[] {
   if (!raw) return [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as Favorite[]) : [];
+    if (!Array.isArray(parsed)) return [];
+    // Migrate old "want_to_go" → "want_to_try"
+    return (parsed as Favorite[]).map((f) => ({
+      ...f,
+      type: (f.type as string) === "want_to_go" ? "want_to_try" : f.type,
+    })) as Favorite[];
   } catch {
     return [];
   }
@@ -25,20 +30,10 @@ function saveAll(favs: Favorite[]): void {
 
 // ─── 公開 API ────────────────────────────────────────────────────────────────
 
-/** 指定ユーザーの指定店舗のお気に入り種別を返す（なければ null） */
-export function getFavorite(
-  shopId: string,
-  userId: string,
-): FavoriteType | null {
+export function getFavorite(shopId: string, userId: string): FavoriteType | null {
   return loadAll().find((f) => f.shopId === shopId && f.userId === userId)?.type ?? null;
 }
 
-/**
- * お気に入りをトグルする。
- * - 同じ type を再選択 → 削除（解除）
- * - 別の type を選択 → 上書き
- * - 未設定 → 追加
- */
 export function toggleFavorite(
   shopId: string,
   userId: string,
@@ -49,24 +44,28 @@ export function toggleFavorite(
 
   if (idx !== -1) {
     if (all[idx].type === type) {
-      // 同じ種別 → 解除
       all.splice(idx, 1);
       saveAll(all);
       return null;
     }
-    // 別の種別 → 上書き
     all[idx] = { shopId, userId, type };
     saveAll(all);
     return type;
   }
 
-  // 新規追加
   all.push({ shopId, userId, type });
   saveAll(all);
   return type;
 }
 
-/** ユーザーの訪問済み shopId 一覧 */
+export function getWantToTryShopIds(userId: string): Set<string> {
+  return new Set(
+    loadAll()
+      .filter((f) => f.userId === userId && f.type === "want_to_try")
+      .map((f) => f.shopId),
+  );
+}
+
 export function getVisitedShopIds(userId: string): Set<string> {
   return new Set(
     loadAll()
@@ -75,16 +74,22 @@ export function getVisitedShopIds(userId: string): Set<string> {
   );
 }
 
-/** ユーザーの行きたい shopId 一覧 */
-export function getWantToGoShopIds(userId: string): Set<string> {
+export function getWantAgainShopIds(userId: string): Set<string> {
   return new Set(
     loadAll()
-      .filter((f) => f.userId === userId && f.type === "want_to_go")
+      .filter((f) => f.userId === userId && f.type === "want_again")
       .map((f) => f.shopId),
   );
 }
 
-/** ユーザーの全お気に入り（visited + want_to_go）shopId 一覧 */
+export function getShopIdsByFavoriteType(userId: string, type: FavoriteType): Set<string> {
+  return new Set(
+    loadAll()
+      .filter((f) => f.userId === userId && f.type === type)
+      .map((f) => f.shopId),
+  );
+}
+
 export function getAllFavoriteShopIds(userId: string): Set<string> {
   return new Set(
     loadAll()
@@ -93,7 +98,9 @@ export function getAllFavoriteShopIds(userId: string): Set<string> {
   );
 }
 
-/** 訪問済み件数 */
+/** 訪問済み件数（visited + want_again） */
 export function getVisitedCount(userId: string): number {
-  return loadAll().filter((f) => f.userId === userId && f.type === "visited").length;
+  return loadAll().filter(
+    (f) => f.userId === userId && (f.type === "visited" || f.type === "want_again"),
+  ).length;
 }
