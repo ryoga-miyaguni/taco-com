@@ -7,6 +7,7 @@ import {
   AVATAR_EMOJI,
   COMPANION_LABEL,
   FREQUENT_AREA_LABEL,
+  OKINAWA_CITIES,
   RESIDENCE_LABEL,
   SHELL_LABEL,
   SHOP_GOAL_LABEL,
@@ -55,6 +56,91 @@ function ChoiceButton({
   );
 }
 
+// ─── 市町村コンボボックス ────────────────────────────────────────────────────
+
+function CityCombobox({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const filtered = query.trim()
+    ? OKINAWA_CITIES.filter((c) => c.includes(query.trim()))
+    : [...OKINAWA_CITIES];
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleSelect = (city: string) => {
+    onChange(city);
+    setQuery("");
+    setOpen(false);
+  };
+
+  const handleClear = () => {
+    onChange("");
+    setQuery("");
+  };
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div className="flex items-center gap-2 w-full bg-white border-2 border-ink rounded-full px-4 h-10 focus-within:ring-2 focus-within:ring-naranja">
+        {value && !open ? (
+          <>
+            <span className="flex-1 text-[13px] text-ink">{value}</span>
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-ink/40 hover:text-ink text-[12px] shrink-0"
+            >
+              ✕
+            </button>
+          </>
+        ) : (
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            placeholder={value || "市町村名で検索…"}
+            className="flex-1 bg-transparent text-[13px] outline-none"
+          />
+        )}
+      </div>
+
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-50 top-full mt-1 w-full bg-crema border-2 border-ink rounded-xl shadow-[3px_3px_0_var(--ink)] max-h-48 overflow-y-auto mercado-scroll">
+          {filtered.map((city) => (
+            <li key={city}>
+              <button
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); handleSelect(city); }}
+                className={`w-full text-left px-4 py-2 text-[13px] font-display hover:bg-naranja hover:text-crema transition-colors ${
+                  city === value ? "bg-masa-hi font-bold" : ""
+                }`}
+              >
+                {city}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function ToggleButton({
   selected,
   onClick,
@@ -100,6 +186,7 @@ export function AuthModal() {
   const [shopGoals, setShopGoals] = useState<ShopGoal[]>([]);
   const [frequentArea, setFrequentArea] = useState<FrequentArea | "">("");
   const [companionType, setCompanionType] = useState<CompanionType | "">("");
+  const [residenceCity, setResidenceCity] = useState("");
 
   const ignoreBackdropRef = useRef(false);
   useEffect(() => {
@@ -171,6 +258,7 @@ export function AuthModal() {
       shopGoals,
       frequentArea: frequentArea || undefined,
       companionType: companionType || undefined,
+      residenceCity: residenceCity || undefined,
     });
     if (result.error) setError(result.error);
   };
@@ -519,6 +607,15 @@ export function AuthModal() {
                     </ToggleButton>
                   ))}
                 </div>
+              </div>
+
+              {/* 居住地（市町村・任意） */}
+              <div>
+                <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
+                  住んでいる地域
+                  <span className="ml-1 normal-case tracking-normal text-ink/50">（任意）</span>
+                </label>
+                <CityCombobox value={residenceCity} onChange={setResidenceCity} />
               </div>
 
               {error && (

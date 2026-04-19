@@ -21,7 +21,13 @@ import { hasReported, reportComment } from "@/lib/reports";
 const MAX_BODY = 200;
 const DEFAULT_SLIDER: SliderRatings = { texture: 2, style: 2, volume: 2, atmosphere: 2 };
 
-export function CommentSection({ shopId }: { shopId: string }) {
+export function CommentSection({
+  shopId,
+  onRatingsChanged,
+}: {
+  shopId: string;
+  onRatingsChanged?: () => void;
+}) {
   const { user, requireAuth } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
@@ -40,6 +46,7 @@ export function CommentSection({ shopId }: { shopId: string }) {
     setExistingComment(
       user ? (findExistingComment(shopId, user.id) ?? null) : null
     );
+    onRatingsChanged?.();
   };
 
   useEffect(() => {
@@ -54,7 +61,6 @@ export function CommentSection({ shopId }: { shopId: string }) {
     if (!requireAuth()) return;
 
     const trimmed = body.trim();
-    if (!trimmed) { setError("コメントを入力してください"); return; }
     if (trimmed.length > MAX_BODY) { setError(`${MAX_BODY}文字以内で入力してください`); return; }
 
     try {
@@ -107,7 +113,7 @@ export function CommentSection({ shopId }: { shopId: string }) {
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
-                placeholder="味の感想、おすすめメニューなど…"
+                placeholder="感想・コメント（任意）"
                 rows={3}
                 maxLength={MAX_BODY}
                 className="w-full resize-none bg-crema border-2 border-ink rounded-lg px-3 py-2 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
@@ -600,37 +606,43 @@ function SliderRatingPicker({
   onChange: (v: SliderRatings) => void;
 }) {
   return (
-    <div className="bg-crema border-2 border-ink rounded-lg px-3 py-2 space-y-2">
-      {SLIDER_RATING_DEF.map(({ key, label, left, right }) => (
-        <div key={key}>
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-display text-ink/70">{label}</span>
-            <span className="text-[10px] font-mono text-naranja">
-              {value[key]}/4
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-ink/50 shrink-0 w-16 text-right">{left}</span>
-            <div className="flex gap-1 flex-1 justify-center">
-              {([1, 2, 3, 4] as const).map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => onChange({ ...value, [key]: n })}
-                  className={`h-7 w-7 rounded-full border-2 text-[11px] font-bold transition-all ${
-                    value[key] === n
-                      ? "bg-naranja text-crema border-ink shadow-[1px_1px_0_var(--ink)]"
-                      : "bg-crema text-ink/40 border-ink/30 hover:border-naranja hover:text-naranja"
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
+    <div className="bg-crema border-2 border-ink rounded-lg px-3 py-3 space-y-3.5">
+      {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
+        const val = value[key];
+        const leanText = val <= 2 ? left : right;
+        const leanStrong = val === 1 || val === 4;
+        return (
+          <div key={key}>
+            {/* ラベル行 */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[13px] font-display text-ink font-bold">{label}</span>
+              <span className={`text-[12px] font-display transition-colors ${leanStrong ? "text-naranja font-bold" : "text-ink/60"}`}>
+                {leanText} 寄り
+              </span>
             </div>
-            <span className="text-[10px] text-ink/50 shrink-0 w-16">{right}</span>
+            {/* セレクター行 */}
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] font-display text-ink shrink-0 w-18 text-right">{left}</span>
+              <div className="flex gap-2 flex-1 justify-center">
+                {([1, 2, 3, 4] as const).map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => onChange({ ...value, [key]: n })}
+                    aria-label={n <= 2 ? `${left}寄り${n === 1 ? "（強）" : "（弱）"}` : `${right}寄り${n === 4 ? "（強）" : "（弱）"}`}
+                    className={`h-9 w-9 rounded-full border-2 transition-all ${
+                      n <= val
+                        ? "bg-naranja border-ink shadow-[1px_1px_0_var(--ink)]"
+                        : "bg-white border-ink/30 hover:border-naranja"
+                    } ${val === n ? "scale-110" : ""}`}
+                  />
+                ))}
+              </div>
+              <span className="text-[12px] font-display text-ink shrink-0 w-18">{right}</span>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -639,26 +651,28 @@ function SliderRatingPicker({
 
 function SliderRatingsDisplay({ ratings }: { ratings: SliderRatings }) {
   return (
-    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
       {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
         const val = ratings[key];
+        const leanText = val <= 2 ? left : right;
         return (
-          <div key={key} className="flex flex-col gap-0.5">
-            <span className="text-[9px] font-display text-ink/50 uppercase tracking-wider">{label}</span>
-            <div className="flex items-center gap-1">
-              <span className="text-[9px] text-ink/40 w-10 text-right truncate">{left}</span>
+          <div key={key} className="flex flex-col gap-1">
+            <span className="text-[10px] font-display text-ink font-bold">{label}</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[9px] text-ink/50 w-8 text-right truncate shrink-0">{left}</span>
               <div className="flex gap-0.5">
                 {([1, 2, 3, 4] as const).map((n) => (
                   <div
                     key={n}
-                    className={`h-2 w-2 rounded-full border ${
-                      n <= val ? "bg-naranja border-naranja" : "bg-transparent border-ink/20"
+                    className={`h-2.5 w-2.5 rounded-full ${
+                      n <= val ? "bg-naranja" : "bg-ink/15"
                     }`}
                   />
                 ))}
               </div>
-              <span className="text-[9px] text-ink/40 w-10 truncate">{right}</span>
+              <span className="text-[9px] text-ink/50 w-8 truncate shrink-0">{right}</span>
             </div>
+            <span className="text-[10px] font-display text-naranja-deep">{leanText} 寄り</span>
           </div>
         );
       })}
