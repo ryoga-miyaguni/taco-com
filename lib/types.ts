@@ -210,10 +210,10 @@ export type Favorite = {
 export type StampKey = "tortilla" | "salsa" | "vibe" | "owner";
 
 export const STAMP_DEF: Record<StampKey, { emoji: string; label: string }> = {
-  tortilla: { emoji: "🫓", label: "トルティーヤがいいね" },
-  salsa:    { emoji: "🥣", label: "ソースがいいね！" },
-  vibe:     { emoji: "✨", label: "お店の雰囲気がいいね！" },
-  owner:    { emoji: "👨‍🍳", label: "店主がいいね" },
+  tortilla: { emoji: "🫓", label: "トルティーヤがいい！" },
+  salsa:    { emoji: "🥣", label: "サルサがいい！" },
+  vibe:     { emoji: "✨", label: "雰囲気がいい！" },
+  owner:    { emoji: "👨‍🍳", label: "店主がいい！" },
 };
 
 export const STAMP_KEYS: StampKey[] = ["tortilla", "salsa", "vibe", "owner"];
