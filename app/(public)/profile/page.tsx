@@ -7,29 +7,30 @@ import { Pencil, Check, X } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { loadAllComments } from "@/lib/comments";
 import { getBadge, BADGES } from "@/lib/badges";
-import { getVisitedCount, getVisitedShopIds, getWantToGoShopIds } from "@/lib/favorites";
+import { getVisitedCount, getShopIdsByFavoriteType } from "@/lib/favorites";
 import { loadRequestsByUser } from "@/lib/requests";
 import { getShops } from "@/lib/shops";
 import { getShopId } from "@/lib/types";
 import {
   AVATAR_EMOJI,
   COMPANION_LABEL,
+  FAVORITE_TYPE_LABEL,
   FREQUENT_AREA_LABEL,
   OKINAWA_CITIES,
-  RESIDENCE_LABEL,
   SHELL_LABEL,
   SHOP_GOAL_LABEL,
   SPICE_LABEL,
   TRANSPORT_LABEL,
   type CompanionType,
+  type FavoriteType,
   type FrequentArea,
-  type Residence,
   type ShellPreference,
   type ShopGoal,
   type SpiceLevel,
   type Transport,
 } from "@/lib/types";
-import type { Comment, Shop, ShopRequest } from "@/lib/types";
+import type { Comment, Shop, ShopRequest, SliderRatings } from "@/lib/types";
+import { SLIDER_RATING_DEF } from "@/lib/types";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -104,13 +105,13 @@ export default function ProfilePage() {
   const [visitedCount, setVisitedCount] = useState(0);
   const [editMode, setEditMode] = useState(false);
   const [shopNameById, setShopNameById] = useState<Record<string, string>>({});
-  const [visitedShops, setVisitedShops] = useState<Shop[]>([]);
-  const [wantToGoShops, setWantToGoShops] = useState<Shop[]>([]);
-  const [favTab, setFavTab] = useState<"visited" | "want_to_go">("visited");
+  const [shopsByFavType, setShopsByFavType] = useState<Record<FavoriteType, Shop[]>>({
+    want_to_try: [], visited: [], want_again: [],
+  });
+  const [favTab, setFavTab] = useState<FavoriteType>("want_to_try");
 
   // 編集フォームの状態
   const [birthYear, setBirthYear] = useState("");
-  const [residence, setResidence] = useState<Residence | "">("");
   const [transport, setTransport] = useState<Transport | "">("");
   const [shellPreference, setShellPreference] = useState<ShellPreference | "">("");
   const [spiceLevel, setSpiceLevel] = useState<SpiceLevel | "">("");
@@ -142,10 +143,14 @@ export default function ProfilePage() {
     const m: Record<string, string> = {};
     allShops.forEach((s) => { m[getShopId(s)] = s.name; });
     setShopNameById(m);
-    const visitedIds = getVisitedShopIds(user.id);
-    const wantIds = getWantToGoShopIds(user.id);
-    setVisitedShops(allShops.filter((s) => visitedIds.has(getShopId(s))));
-    setWantToGoShops(allShops.filter((s) => wantIds.has(getShopId(s))));
+    const favTypes: FavoriteType[] = ["want_to_try", "visited", "want_again"];
+    const byType = Object.fromEntries(
+      favTypes.map((t) => {
+        const ids = getShopIdsByFavoriteType(user.id, t);
+        return [t, allShops.filter((s) => ids.has(getShopId(s)))];
+      }),
+    ) as Record<FavoriteType, Shop[]>;
+    setShopsByFavType(byType);
   }, [user]);
 
   if (isLoading || !user) return null;
@@ -156,7 +161,6 @@ export default function ProfilePage() {
 
   const openEdit = () => {
     setBirthYear(user.birthYear?.toString() ?? "");
-    setResidence(user.residence ?? "");
     setTransport(user.transport ?? "");
     setShellPreference(user.shellPreference ?? "");
     setSpiceLevel(user.spiceLevel ?? "");
@@ -178,7 +182,6 @@ export default function ProfilePage() {
     }
     updateUser({
       birthYear: birthYear ? year : undefined,
-      residence: residence || undefined,
       transport: transport || undefined,
       shellPreference: shellPreference || undefined,
       spiceLevel: spiceLevel || undefined,
@@ -281,8 +284,8 @@ export default function ProfilePage() {
                 {age !== null && (
                   <ProfileTag>🎂 {age}歳</ProfileTag>
                 )}
-                {user.residence && (
-                  <ProfileTag>{RESIDENCE_LABEL[user.residence]}</ProfileTag>
+                {user.residenceCity && (
+                  <ProfileTag>🏠 {user.residenceCity}</ProfileTag>
                 )}
                 {user.transport && (
                   <ProfileTag>{TRANSPORT_LABEL[user.transport]}</ProfileTag>
@@ -301,9 +304,6 @@ export default function ProfilePage() {
                 )}
                 {user.companionType && (
                   <ProfileTag>👥 {COMPANION_LABEL[user.companionType]}</ProfileTag>
-                )}
-                {user.residenceCity && (
-                  <ProfileTag>🏠 {user.residenceCity}</ProfileTag>
                 )}
               </div>
             </div>
@@ -333,17 +333,46 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* 居住属性 */}
+              {/* 居住地（市町村） */}
               <div>
                 <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
-                  あなたはどっち？
+                  住んでいる地域
+                  <span className="ml-1 normal-case tracking-normal text-ink/50">（任意）</span>
                 </label>
-                <div className="flex gap-2">
-                  {(Object.keys(RESIDENCE_LABEL) as Residence[]).map((r) => (
-                    <ChoiceBtn key={r} selected={residence === r} onClick={() => setResidence(r)}>
-                      {RESIDENCE_LABEL[r]}
-                    </ChoiceBtn>
-                  ))}
+                <div className="relative">
+                  <div className="flex items-center gap-2 w-full bg-white border-2 border-ink rounded-full px-4 h-9 focus-within:ring-2 focus-within:ring-naranja">
+                    {residenceCity && !cityOpen ? (
+                      <>
+                        <span className="flex-1 text-[13px] text-ink">{residenceCity}</span>
+                        <button type="button" onClick={() => { setResidenceCity(""); }} className="text-ink/40 hover:text-ink text-[12px]">✕</button>
+                      </>
+                    ) : (
+                      <input
+                        type="text"
+                        value={cityQuery}
+                        onChange={(e) => { setCityQuery(e.target.value); setCityOpen(true); }}
+                        onFocus={() => setCityOpen(true)}
+                        onBlur={() => setTimeout(() => setCityOpen(false), 150)}
+                        placeholder={residenceCity || "市町村名で検索…"}
+                        className="flex-1 bg-transparent text-[13px] outline-none"
+                      />
+                    )}
+                  </div>
+                  {cityOpen && (
+                    <ul className="absolute z-50 top-full mt-1 w-full bg-crema border-2 border-ink rounded-xl shadow-[3px_3px_0_var(--ink)] max-h-40 overflow-y-auto">
+                      {OKINAWA_CITIES.filter((c) => !cityQuery.trim() || c.includes(cityQuery.trim())).map((city) => (
+                        <li key={city}>
+                          <button
+                            type="button"
+                            onMouseDown={() => { setResidenceCity(city); setCityQuery(""); setCityOpen(false); }}
+                            className={`w-full text-left px-4 py-2 text-[13px] font-display hover:bg-naranja hover:text-crema transition-colors ${city === residenceCity ? "bg-masa-hi font-bold" : ""}`}
+                          >
+                            {city}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               </div>
 
@@ -450,49 +479,6 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* 居住地（市町村） */}
-              <div>
-                <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
-                  住んでいる地域
-                  <span className="ml-1 normal-case tracking-normal text-ink/50">（任意）</span>
-                </label>
-                <div className="relative">
-                  <div className="flex items-center gap-2 w-full bg-white border-2 border-ink rounded-full px-4 h-9 focus-within:ring-2 focus-within:ring-naranja">
-                    {residenceCity && !cityOpen ? (
-                      <>
-                        <span className="flex-1 text-[13px] text-ink">{residenceCity}</span>
-                        <button type="button" onClick={() => { setResidenceCity(""); }} className="text-ink/40 hover:text-ink text-[12px]">✕</button>
-                      </>
-                    ) : (
-                      <input
-                        type="text"
-                        value={cityQuery}
-                        onChange={(e) => { setCityQuery(e.target.value); setCityOpen(true); }}
-                        onFocus={() => setCityOpen(true)}
-                        onBlur={() => setTimeout(() => setCityOpen(false), 150)}
-                        placeholder={residenceCity || "市町村名で検索…"}
-                        className="flex-1 bg-transparent text-[13px] outline-none"
-                      />
-                    )}
-                  </div>
-                  {cityOpen && (
-                    <ul className="absolute z-50 top-full mt-1 w-full bg-crema border-2 border-ink rounded-xl shadow-[3px_3px_0_var(--ink)] max-h-40 overflow-y-auto">
-                      {OKINAWA_CITIES.filter((c) => !cityQuery.trim() || c.includes(cityQuery.trim())).map((city) => (
-                        <li key={city}>
-                          <button
-                            type="button"
-                            onMouseDown={() => { setResidenceCity(city); setCityQuery(""); setCityOpen(false); }}
-                            className={`w-full text-left px-4 py-2 text-[13px] font-display hover:bg-naranja hover:text-crema transition-colors ${city === residenceCity ? "bg-masa-hi font-bold" : ""}`}
-                          >
-                            {city}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
-
               {editError && (
                 <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">
                   {editError}
@@ -532,27 +518,28 @@ export default function ProfilePage() {
           </h2>
           {/* タブ */}
           <div className="flex border-2 border-ink rounded-xl overflow-hidden mb-3">
-            {(["visited", "want_to_go"] as const).map((t) => (
+            {(["want_to_try", "visited", "want_again"] as FavoriteType[]).map((t) => (
               <button
                 key={t}
                 type="button"
                 onClick={() => setFavTab(t)}
-                className={`flex-1 py-2 text-[13px] font-display transition-colors ${
+                className={`flex-1 py-2 text-[11px] font-display transition-colors leading-tight ${
                   favTab === t ? "bg-naranja text-crema" : "bg-crema text-ink hover:bg-masa-hi"
                 }`}
               >
-                {t === "visited" ? `行った ✓ (${visitedShops.length})` : `行きたい ♡ (${wantToGoShops.length})`}
+                {FAVORITE_TYPE_LABEL[t]}
+                <span className="ml-1 opacity-70">({shopsByFavType[t].length})</span>
               </button>
             ))}
           </div>
           {/* リスト */}
-          {(favTab === "visited" ? visitedShops : wantToGoShops).length === 0 ? (
+          {shopsByFavType[favTab].length === 0 ? (
             <p className="text-center font-serif-it italic text-[13px] text-muted-foreground py-6">
-              {favTab === "visited" ? "まだ訪問済みのお店がありません" : "まだ行きたいお店がありません"}
+              まだ登録したお店がありません
             </p>
           ) : (
             <ul className="space-y-2">
-              {(favTab === "visited" ? visitedShops : wantToGoShops).map((s) => (
+              {shopsByFavType[favTab].map((s) => (
                 <li
                   key={getShopId(s)}
                   className="bg-crema border-2 border-ink rounded-xl px-4 py-3 shadow-[2px_2px_0_var(--ink)] flex items-center gap-3"
@@ -645,7 +632,14 @@ export default function ProfilePage() {
                       </span>
                     </div>
                   </div>
-                  <p className="text-[13px] text-ink leading-snug line-clamp-3">{c.body}</p>
+                  {c.sliderRatings && (
+                    <MiniSliderDisplay ratings={c.sliderRatings} />
+                  )}
+                  {c.body ? (
+                    <p className="mt-1.5 text-[13px] text-ink leading-snug line-clamp-3">{c.body}</p>
+                  ) : (
+                    <p className="mt-1.5 text-[11px] font-serif-it italic text-ink/40">コメントなし</p>
+                  )}
                   <p className="mt-1.5 text-[10px] font-mono text-muted-foreground">
                     {formatDate(c.createdAt)}
                   </p>
@@ -709,6 +703,28 @@ export default function ProfilePage() {
           </button>
         </div>
       </main>
+    </div>
+  );
+}
+
+function MiniSliderDisplay({ ratings }: { ratings: SliderRatings }) {
+  return (
+    <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1">
+      {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
+        const val = ratings[key];
+        const leanText = val <= 2 ? left : right;
+        return (
+          <div key={key} className="flex items-center gap-1.5">
+            <span className="text-[9px] font-display font-bold text-ink w-10 shrink-0">{label}</span>
+            <div className="flex gap-0.5 shrink-0">
+              {([1, 2, 3, 4] as const).map((n) => (
+                <div key={n} className={`h-1.5 w-1.5 rounded-full ${n <= val ? "bg-naranja" : "bg-ink/15"}`} />
+              ))}
+            </div>
+            <span className="text-[9px] text-ink/45 truncate">{leanText}寄り</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

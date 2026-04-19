@@ -56,7 +56,7 @@ export function CommentSection({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId, user]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!requireAuth()) return;
 
@@ -233,7 +233,6 @@ function CommentCard({
   const handleEditSave = () => {
     if (!user) return;
     const trimmed = editBody.trim();
-    if (!trimmed) return;
     editComment(c.id, user.id, trimmed, editSlider);
     setEditing(false);
     onChanged();
@@ -248,10 +247,10 @@ function CommentCard({
     >
       {/* 著者行 */}
       <div className="flex items-center gap-2">
-        <span className="h-6 w-6 rounded-full bg-naranja text-crema border-2 border-ink flex items-center justify-center text-[13px] shrink-0">
+        <span className="h-7 w-7 rounded-full bg-naranja text-crema border-2 border-ink flex items-center justify-center text-[14px] shrink-0">
           {AVATAR_EMOJI[c.avatarKey]}
         </span>
-        <span className="font-display text-[13px] text-ink truncate">{c.nickname}</span>
+        <span className="font-display text-[14px] text-ink truncate">{c.nickname}</span>
         {badge && (
           <span title={`${badge.label} — ${badge.description}`} className="text-base leading-none shrink-0">
             {badge.emoji}
@@ -298,10 +297,12 @@ function CommentCard({
             </button>
           </div>
         </div>
-      ) : (
-        <p className="mt-1.5 text-[13px] text-ink whitespace-pre-wrap wrap-break-word leading-snug">
+      ) : c.body ? (
+        <p className="mt-1.5 text-[14px] text-ink whitespace-pre-wrap wrap-break-word leading-snug">
           {c.body}
         </p>
+      ) : (
+        <p className="mt-1 text-[12px] font-serif-it italic text-ink/40">コメントなし</p>
       )}
 
       {/* フッター */}
@@ -441,7 +442,7 @@ function ReplyForm({
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) return;
     const trimmed = body.trim();
@@ -606,39 +607,34 @@ function SliderRatingPicker({
   onChange: (v: SliderRatings) => void;
 }) {
   return (
-    <div className="bg-crema border-2 border-ink rounded-lg px-3 py-3 space-y-3.5">
+    <div className="bg-crema border-2 border-ink rounded-lg px-3 py-3 space-y-4">
       {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
         const val = value[key];
-        const leanText = val <= 2 ? left : right;
-        const leanStrong = val === 1 || val === 4;
         return (
           <div key={key}>
             {/* ラベル行 */}
-            <div className="flex items-center justify-between mb-2">
+            <div className="mb-2">
               <span className="text-[13px] font-display text-ink font-bold">{label}</span>
-              <span className={`text-[12px] font-display transition-colors ${leanStrong ? "text-naranja font-bold" : "text-ink/60"}`}>
-                {leanText} 寄り
-              </span>
             </div>
             {/* セレクター行 */}
-            <div className="flex items-center gap-2">
-              <span className="text-[12px] font-display text-ink shrink-0 w-18 text-right">{left}</span>
-              <div className="flex gap-2 flex-1 justify-center">
+            <div className="flex items-center gap-3">
+              <span className="text-[12px] font-display text-ink/80 shrink-0 w-14 text-right leading-tight">{left}</span>
+              <div className="flex gap-2 flex-1 justify-between">
                 {([1, 2, 3, 4] as const).map((n) => (
                   <button
                     key={n}
                     type="button"
                     onClick={() => onChange({ ...value, [key]: n })}
-                    aria-label={n <= 2 ? `${left}寄り${n === 1 ? "（強）" : "（弱）"}` : `${right}寄り${n === 4 ? "（強）" : "（弱）"}`}
-                    className={`h-9 w-9 rounded-full border-2 transition-all ${
-                      n <= val
-                        ? "bg-naranja border-ink shadow-[1px_1px_0_var(--ink)]"
-                        : "bg-white border-ink/30 hover:border-naranja"
-                    } ${val === n ? "scale-110" : ""}`}
+                    aria-label={n <= 2 ? `${left}側 ${n}` : `${right}側 ${n}`}
+                    className={`h-8 w-8 rounded-full border-2 transition-all duration-150 ${
+                      n === val
+                        ? "bg-naranja border-ink shadow-[2px_2px_0_var(--ink)] scale-115"
+                        : "bg-crema border-ink/25 hover:border-naranja/70 hover:bg-naranja/10"
+                    }`}
                   />
                 ))}
               </div>
-              <span className="text-[12px] font-display text-ink shrink-0 w-18">{right}</span>
+              <span className="text-[12px] font-display text-ink/80 shrink-0 w-14 leading-tight">{right}</span>
             </div>
           </div>
         );
@@ -651,28 +647,26 @@ function SliderRatingPicker({
 
 function SliderRatingsDisplay({ ratings }: { ratings: SliderRatings }) {
   return (
-    <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
+    <div className="mt-2 bg-masa-lo border border-ink/20 rounded-lg px-3 py-2.5 space-y-2.5">
       {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
         const val = ratings[key];
-        const leanText = val <= 2 ? left : right;
         return (
-          <div key={key} className="flex flex-col gap-1">
-            <span className="text-[10px] font-display text-ink font-bold">{label}</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9px] text-ink/50 w-8 text-right truncate shrink-0">{left}</span>
-              <div className="flex gap-0.5">
+          <div key={key} className="space-y-1">
+            <span className="font-serif-it italic text-[12px] tracking-[0.12em] text-naranja-deep block text-center">{label}</span>
+            <div className="flex items-center justify-center gap-2">
+              <span className="text-[12px] font-display font-bold text-ink w-16 text-right shrink-0 leading-tight">{left}</span>
+              <div className="flex gap-1.5 shrink-0">
                 {([1, 2, 3, 4] as const).map((n) => (
                   <div
                     key={n}
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      n <= val ? "bg-naranja" : "bg-ink/15"
+                    className={`h-3.5 w-3.5 rounded-full border-2 ${
+                      n === val ? "bg-naranja border-ink shadow-[1px_1px_0_var(--ink)]" : "bg-crema border-ink/30"
                     }`}
                   />
                 ))}
               </div>
-              <span className="text-[9px] text-ink/50 w-8 truncate shrink-0">{right}</span>
+              <span className="text-[12px] font-display font-bold text-ink w-16 shrink-0 leading-tight">{right}</span>
             </div>
-            <span className="text-[10px] font-display text-naranja-deep">{leanText} 寄り</span>
           </div>
         );
       })}

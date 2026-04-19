@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import type { Shop, StampKey, SliderRatings } from "@/lib/types";
-import { SHOP_TYPE_COLOR, SHOP_TYPE_LABEL, STAMP_DEF, STAMP_KEYS, SLIDER_RATING_DEF, getShopId } from "@/lib/types";
+import { SHOP_TYPE_COLOR, SHOP_TYPE_LABEL, STAMP_DEF, STAMP_KEYS, SLIDER_RATING_DEF, FAVORITE_TYPE_LABEL, getShopId } from "@/lib/types";
 import { CommentSection } from "./CommentSection";
 import { useAuth } from "./AuthProvider";
 import { getFavorite, toggleFavorite } from "@/lib/favorites";
@@ -132,22 +132,21 @@ export function ShopDetailPanel({
           <div className="wavy-divider w-full my-4 opacity-80" />
 
           {/* お気に入りボタン */}
-          <div className="flex gap-2 mb-4">
-            {(["visited", "want_to_go"] as FavoriteType[]).map((type) => {
+          <div className="flex gap-1.5 mb-4">
+            {(["want_to_try", "visited", "want_again"] as FavoriteType[]).map((type) => {
               const isActive = favType === type;
-              const label = type === "visited" ? "行った ✓" : "行きたい ♡";
               return (
                 <button
                   key={type}
                   type="button"
                   onClick={() => handleFav(type)}
-                  className={`flex-1 h-9 rounded-full text-[12px] font-display border-2 border-ink transition-all shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] ${
+                  className={`flex-1 h-9 rounded-full text-[11px] font-display border-2 border-ink transition-all shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] ${
                     isActive
                       ? "bg-naranja text-crema"
                       : "bg-crema text-ink hover:bg-masa-hi"
                   }`}
                 >
-                  {label}
+                  {FAVORITE_TYPE_LABEL[type]}
                 </button>
               );
             })}
@@ -251,37 +250,39 @@ export function ShopDetailPanel({
             </div>
           </div>
 
-          {/* みんなの評価（平均スライダー） */}
+          {/* みんなの声（平均スライダー） */}
           {avgRatings && (
             <div className="mt-5">
-              <div className="flex items-baseline gap-2 mb-2">
-                <p className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep">
-                  みんなの評価
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="font-serif-it text-[14px] tracking-[0.15em] uppercase text-naranja-deep">
+                  みんなの声
                 </p>
-                <span className="text-[10px] font-mono text-ink/40">
+                <span className="text-[10px] font-mono text-ink/50 bg-masa-hi border border-ink/20 rounded-full px-2 py-0.5">
                   {ratingCount}件の平均
                 </span>
               </div>
-              <div className="bg-masa-hi border-2 border-ink rounded-lg px-3 py-2 space-y-2">
+              <div className="bg-masa-hi border-2 border-ink rounded-xl px-5 py-4 space-y-4 shadow-[2px_2px_0_var(--ink)]">
                 {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
                   const val = avgRatings[key];
                   return (
-                    <div key={key} className="flex items-center gap-2">
-                      <span className="text-[10px] font-display text-ink/70 w-12 shrink-0">{label}</span>
-                      <span className="text-[9px] text-ink/40 w-12 text-right shrink-0 hidden sm:block">{left}</span>
-                      <div className="flex gap-1 flex-1">
-                        {([1, 2, 3, 4] as const).map((n) => (
-                          <div
-                            key={n}
-                            className={`flex-1 h-2.5 rounded-full border ${
-                              n <= val
-                                ? "bg-naranja border-naranja"
-                                : "bg-crema border-ink/20"
-                            }`}
-                          />
-                        ))}
+                    <div key={key} className="space-y-1.5">
+                      <span className="font-serif-it italic text-[13px] tracking-[0.15em] text-naranja-deep block text-center">{label}</span>
+                      <div className="flex items-center justify-center gap-3">
+                        <span className="text-[14px] font-display font-bold text-ink w-24 text-right shrink-0 leading-tight">{left}</span>
+                        <div className="flex gap-2 shrink-0">
+                          {([1, 2, 3, 4] as const).map((n) => (
+                            <div
+                              key={n}
+                              className={`h-4 w-4 rounded-full border-2 transition-all ${
+                                n === val
+                                  ? "bg-naranja border-ink shadow-[1px_1px_0_var(--ink)]"
+                                  : "bg-crema border-ink/30"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-[14px] font-display font-bold text-ink w-24 shrink-0 leading-tight">{right}</span>
                       </div>
-                      <span className="text-[9px] text-ink/40 w-12 shrink-0 hidden sm:block">{right}</span>
                     </div>
                   );
                 })}

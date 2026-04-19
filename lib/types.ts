@@ -139,7 +139,7 @@ export type User = {
 // ─── Comments ────────────────────────────────────────────────────────────────
 
 export type SliderRatings = {
-  texture: 1 | 2 | 3 | 4;    // 生地の食感: 1=パリパリ, 4=モチモチ
+  texture: 1 | 2 | 3 | 4;    // 生地: 1=パリパリ, 4=モチモチ
   style: 1 | 2 | 3 | 4;      // スタイル: 1=メキシカン, 4=沖縄・アメリカン
   volume: 1 | 2 | 3 | 4;     // ボリューム: 1=シンプル, 4=ジャンク
   atmosphere: 1 | 2 | 3 | 4; // 雰囲気: 1=隠れ家, 4=賑やか
@@ -152,7 +152,7 @@ export const SLIDER_RATING_DEF: {
   right: string;
 }[] = [
   { key: "texture",    label: "生地の食感", left: "パリパリ",    right: "モチモチ" },
-  { key: "style",      label: "スタイル",   left: "メキシカン",  right: "沖縄・アメリカン" },
+  { key: "style",      label: "スタイル",   left: "メキシカン",  right: "沖縄" },
   { key: "volume",     label: "ボリューム", left: "シンプル",    right: "ジャンク" },
   { key: "atmosphere", label: "雰囲気",     left: "隠れ家",      right: "賑やか" },
 ];
@@ -185,7 +185,19 @@ export type Like = {
 
 // ─── Favorites ───────────────────────────────────────────────────────────────
 
-export type FavoriteType = "visited" | "want_to_go";
+export type FavoriteType = "want_to_try" | "visited" | "want_again";
+
+export const FAVORITE_TYPE_LABEL: Record<FavoriteType, string> = {
+  want_to_try: "行きたい ♡",
+  visited: "行った ✓",
+  want_again: "また行く！",
+};
+
+export const FAVORITE_TYPE_ICON: Record<FavoriteType, string> = {
+  want_to_try: "♡",
+  visited: "✓",
+  want_again: "♻",
+};
 
 export type Favorite = {
   shopId: string;
