@@ -528,10 +528,9 @@ export default function ProfilePage() {
                       {shopNameById[c.shopId] ?? c.shopId.split("@")[0]}
                     </p>
                     <div className="flex items-center gap-2 shrink-0">
-                      {c.rating !== null && (
-                        <span className="text-[12px]">
-                          <span className="text-naranja">{"★".repeat(c.rating)}</span>
-                          <span className="text-(--ink)/20">{"★".repeat(5 - c.rating)}</span>
+                      {c.isEdited && (
+                        <span className="text-[10px] font-mono text-ink/40 border border-ink/20 rounded px-1 py-0.5">
+                          編集済み
                         </span>
                       )}
                       <span className="text-[11px] font-bold text-ink/50">

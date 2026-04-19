@@ -99,6 +99,22 @@ export const COMPANION_LABEL: Record<CompanionType, string> = {
   family: "家族",
 };
 
+// 沖縄県の市町村リスト（+ 県外）
+export const OKINAWA_CITIES = [
+  "那覇市", "宜野湾市", "石垣市", "浦添市", "名護市",
+  "糸満市", "沖縄市", "豊見城市", "うるま市", "宮古島市",
+  "南城市", "国頭村", "大宜味村", "東村", "今帰仁村",
+  "本部町", "恩納村", "宜野座村", "金武町", "伊江村",
+  "読谷村", "嘉手納町", "北谷町", "北中城村", "中城村",
+  "西原町", "与那原町", "南風原町", "豊見城市", "八重瀬町",
+  "南大東村", "北大東村", "伊平屋村", "伊是名村", "久米島町",
+  "渡嘉敷村", "座間味村", "粟国村", "渡名喜村", "多良間村",
+  "竹富町", "与那国町",
+  "県外",
+] as const;
+
+export type OkinawaCity = typeof OKINAWA_CITIES[number];
+
 export type User = {
   id: string;
   displayName: string;
@@ -116,9 +132,30 @@ export type User = {
   // プロフィール拡張（任意）
   frequentArea?: FrequentArea;
   companionType?: CompanionType;
+  // 居住地（市町村単位）
+  residenceCity?: string;
 };
 
 // ─── Comments ────────────────────────────────────────────────────────────────
+
+export type SliderRatings = {
+  texture: 1 | 2 | 3 | 4;    // 生地の食感: 1=パリパリ, 4=モチモチ
+  style: 1 | 2 | 3 | 4;      // スタイル: 1=メキシカン, 4=沖縄・アメリカン
+  volume: 1 | 2 | 3 | 4;     // ボリューム: 1=シンプル, 4=ジャンク
+  atmosphere: 1 | 2 | 3 | 4; // 雰囲気: 1=隠れ家, 4=賑やか
+};
+
+export const SLIDER_RATING_DEF: {
+  key: keyof SliderRatings;
+  label: string;
+  left: string;
+  right: string;
+}[] = [
+  { key: "texture",    label: "生地の食感", left: "パリパリ",    right: "モチモチ" },
+  { key: "style",      label: "スタイル",   left: "メキシカン",  right: "沖縄・アメリカン" },
+  { key: "volume",     label: "ボリューム", left: "シンプル",    right: "ジャンク" },
+  { key: "atmosphere", label: "雰囲気",     left: "隠れ家",      right: "賑やか" },
+];
 
 export type Comment = {
   id: string;
@@ -129,11 +166,12 @@ export type Comment = {
   /** アバター（投稿時にスナップショット） */
   avatarKey: AvatarKey;
   body: string;
-  rating: number | null;   // 返信には rating 不要
-  parentId: string | null; // null = トップレベル
+  sliderRatings: SliderRatings | null; // 返信は null
+  parentId: string | null;             // null = トップレベル
   likeCount: number;
   isHidden: boolean;
   reportCount: number;
+  isEdited?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -153,6 +191,25 @@ export type Favorite = {
   shopId: string;
   userId: string;
   type: FavoriteType;
+};
+
+// ─── Stamps ──────────────────────────────────────────────────────────────────
+
+export type StampKey = "tortilla" | "salsa" | "vibe" | "owner";
+
+export const STAMP_DEF: Record<StampKey, { emoji: string; label: string }> = {
+  tortilla: { emoji: "🫓", label: "トルティーヤがいいね" },
+  salsa:    { emoji: "🥣", label: "ソースがいいね！" },
+  vibe:     { emoji: "✨", label: "お店の雰囲気がいいね！" },
+  owner:    { emoji: "👨‍🍳", label: "店主がいいね" },
+};
+
+export const STAMP_KEYS: StampKey[] = ["tortilla", "salsa", "vibe", "owner"];
+
+export type ShopStamp = {
+  shopId: string;
+  userId: string;
+  stampKey: StampKey;
 };
 
 // ─── Reports ─────────────────────────────────────────────────────────────────
