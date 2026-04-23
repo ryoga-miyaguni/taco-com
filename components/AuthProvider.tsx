@@ -119,9 +119,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setupProfile = useCallback(async (input: ProfileSetupInput): Promise<{ error?: string }> => {
-    if (!pendingGoogleUserId) return { error: "セッションが見つかりません" };
+    if (!pendingGoogleUserId) {
+      console.error("[setupProfile] pendingGoogleUserId is null — session lost");
+      return { error: "セッションが見つかりません" };
+    }
     const result = await createProfileForOAuthUser(pendingGoogleUserId, input);
-    if ("error" in result) return { error: result.error };
+    if ("error" in result) {
+      console.error("[setupProfile] createProfileForOAuthUser failed:", result.error);
+      return { error: result.error };
+    }
     setUser(result.user);
     setPendingGoogleUserId(null);
     setAuthModalOpen(false);

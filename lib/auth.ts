@@ -74,11 +74,15 @@ export type ProfileSetupInput = Omit<RegisterInput, "email" | "password">;
 /** プロフィールを取得（存在しなければ null） */
 export async function fetchProfile(userId: string): Promise<User | null> {
   const supabase = createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .select("*")
     .eq("id", userId)
     .single();
+  if (error && error.code !== "PGRST116") {
+    // PGRST116 = "no rows returned" — expected for new users, all others are real errors
+    console.error("[fetchProfile] unexpected error:", error.code, error.message);
+  }
   return data ? mapProfile(data as ProfileRow) : null;
 }
 
@@ -102,6 +106,8 @@ export async function register(
     id: data.user.id,
     display_name: name,
     avatar_key: input.avatarKey,
+    max_likes: 5,
+    is_banned: false,
     birth_year: input.birthYear ?? null,
     residence: input.residence ?? null,
     transport: input.transport ?? null,
@@ -133,6 +139,8 @@ export async function createProfileForOAuthUser(
     id: userId,
     display_name: name,
     avatar_key: input.avatarKey,
+    max_likes: 5,
+    is_banned: false,
     birth_year: input.birthYear ?? null,
     residence: input.residence ?? null,
     transport: input.transport ?? null,
@@ -143,7 +151,10 @@ export async function createProfileForOAuthUser(
     companion_type: input.companionType ?? null,
     residence_city: input.residenceCity ?? null,
   });
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[createProfileForOAuthUser] INSERT error:", error.code, error.message);
+    return { error: error.message };
+  }
 
   const profile = await fetchProfile(userId);
   if (!profile) return { error: "プロフィールの取得に失敗しました" };

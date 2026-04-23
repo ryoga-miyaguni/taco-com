@@ -390,6 +390,11 @@ export function AuthModal() {
   };
 
   const validateProfileFields = (): string | null => {
+    if (isGoogleSetup) {
+      const name = displayName.trim();
+      if (!name) return "ニックネームを入力してください";
+      if ([...name].length > 10) return "ニックネームは10文字以内にしてください";
+    }
     const year = Number(birthYear);
     if (!birthYear || !/^\d{4}$/.test(birthYear) || year < 1920 || year > CURRENT_YEAR - 10)
       return "生まれた年を正しく入力してください（例: 1995）";
