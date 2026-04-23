@@ -173,14 +173,14 @@ export default function ProfilePage() {
     setEditMode(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setEditError(null);
     const year = Number(birthYear);
     if (birthYear && (!/^\d{4}$/.test(birthYear) || year < 1920 || year > CURRENT_YEAR - 10)) {
       setEditError("生まれた年を正しく入力してください");
       return;
     }
-    updateUser({
+    await updateUser({
       birthYear: birthYear ? year : undefined,
       transport: transport || undefined,
       shellPreference: shellPreference || undefined,
@@ -693,8 +693,8 @@ export default function ProfilePage() {
         <div className="pt-4 border-t-2 border-dashed border-ink/30">
           <button
             type="button"
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              await logout();
               router.replace("/");
             }}
             className="w-full font-display text-[14px] h-11 rounded-full border-2 border-ink text-ink hover:bg-salsa hover:text-crema hover:border-salsa transition-colors shadow-[2px_2px_0_var(--ink)]"

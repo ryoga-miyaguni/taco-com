@@ -14,8 +14,6 @@ import {
 } from "@/lib/comments";
 import { useAuth } from "./AuthProvider";
 import { getLikedCommentIds, toggleLike } from "@/lib/likes";
-import { getBadge } from "@/lib/badges";
-import { getUserById } from "@/lib/auth";
 import { hasReported, reportComment } from "@/lib/reports";
 
 const MAX_BODY = 200;
@@ -174,8 +172,6 @@ function CommentCard({
   const { user, requireAuth } = useAuth();
   const isOwner = !!user && user.id === c.userId;
 
-  const author = getUserById(c.userId);
-  const badge = author ? getBadge(author.maxLikes) : null;
 
   const handleLike = () => {
     if (!requireAuth()) return;
@@ -236,11 +232,6 @@ function CommentCard({
           {AVATAR_EMOJI[c.avatarKey]}
         </span>
         <span className="font-display text-[14px] text-ink truncate">{c.nickname}</span>
-        {badge && (
-          <span title={`${badge.label} — ${badge.description}`} className="text-base leading-none shrink-0">
-            {badge.emoji}
-          </span>
-        )}
         {c.isEdited && (
           <span className="ml-auto shrink-0 text-[10px] font-mono text-ink/40 border border-ink/20 rounded px-1.5 py-0.5">
             編集済み

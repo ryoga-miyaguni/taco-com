@@ -8,13 +8,17 @@ import {
   useState,
 } from "react";
 import type { User } from "@/lib/types";
+import { createClient } from "@/lib/supabase/client";
 import {
-  getCurrentUser,
+  fetchProfile,
   login as authLogin,
+  loginWithGoogle as authLoginWithGoogle,
   logout as authLogout,
   register as authRegister,
   updateUser as authUpdateUser,
+  createProfileForOAuthUser,
   type RegisterInput,
+  type ProfileSetupInput,
 } from "@/lib/auth";
 
 // ─── Context 型 ───────────────────────────────────────────────────────────────
@@ -22,19 +26,25 @@ import {
 type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
-  /** 登録。成功時は user を返す、失敗時は error 文字列を返す */
-  register: (input: RegisterInput) => { error?: string };
-  /** ログイン。成功時は user を返す、失敗時は error 文字列を返す */
-  login: (displayName: string) => { error?: string };
-  logout: () => void;
+  /** メール+パスワードで新規登録 */
+  register: (input: RegisterInput) => Promise<{ error?: string }>;
+  /** Google OAuth 後のプロフィール初期設定 */
+  setupProfile: (input: ProfileSetupInput) => Promise<{ error?: string }>;
+  /** メール+パスワードでログイン */
+  login: (email: string, password: string) => Promise<{ error?: string }>;
+  /** Google OAuth ログイン */
+  loginWithGoogle: () => Promise<void>;
+  /** ログアウト */
+  logout: () => Promise<void>;
   /** プロフィール更新 */
-  updateUser: (updates: Partial<Omit<User, "id" | "createdAt" | "maxLikes">>) => void;
+  updateUser: (updates: Partial<Omit<User, "id" | "createdAt" | "maxLikes">>) => Promise<void>;
   /** 書き込み前にログインが必要か確認し、未ログインなら authModal を開く */
   requireAuth: () => boolean;
-  /** AuthModal を開く */
   openAuthModal: () => void;
   closeAuthModal: () => void;
   authModalOpen: boolean;
+  /** Google OAuth 後にプロフィール未設定のユーザー ID（null = 通常状態） */
+  pendingGoogleUserId: string | null;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -51,45 +61,111 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [pendingGoogleUserId, setPendingGoogleUserId] = useState<string | null>(null);
 
-  // マウント時にセッション復元（永続化）
   useEffect(() => {
-    setUser(getCurrentUser());
-    setIsLoading(false);
+    const supabase = createClient();
+
+    // 初回セッション確認
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const profile = await fetchProfile(session.user.id);
+        if (!profile) {
+          // Google OAuth 等でプロフィール未設定
+          setPendingGoogleUserId(session.user.id);
+          setAuthModalOpen(true);
+        } else if (profile.isBanned) {
+          await supabase.auth.signOut();
+        } else {
+          setUser(profile);
+        }
+      }
+      setIsLoading(false);
+    });
+
+    // セッション変化を監視
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          const profile = await fetchProfile(session.user.id);
+          if (!profile) {
+            setPendingGoogleUserId(session.user.id);
+            setAuthModalOpen(true);
+            setUser(null);
+          } else if (profile.isBanned) {
+            await supabase.auth.signOut();
+            setUser(null);
+          } else {
+            setUser(profile);
+            setPendingGoogleUserId(null);
+          }
+        } else {
+          setUser(null);
+          setPendingGoogleUserId(null);
+        }
+        if (event !== "INITIAL_SESSION") setIsLoading(false);
+      },
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const register = useCallback((input: RegisterInput): { error?: string } => {
-    const result = authRegister(input);
+  const register = useCallback(async (input: RegisterInput): Promise<{ error?: string }> => {
+    const result = await authRegister(input);
     if ("error" in result) return { error: result.error };
     setUser(result.user);
     setAuthModalOpen(false);
     return {};
   }, []);
 
+  const setupProfile = useCallback(async (input: ProfileSetupInput): Promise<{ error?: string }> => {
+    if (!pendingGoogleUserId) return { error: "セッションが見つかりません" };
+    const result = await createProfileForOAuthUser(pendingGoogleUserId, input);
+    if ("error" in result) return { error: result.error };
+    setUser(result.user);
+    setPendingGoogleUserId(null);
+    setAuthModalOpen(false);
+    return {};
+  }, [pendingGoogleUserId]);
+
+  const login = useCallback(async (email: string, password: string): Promise<{ error?: string }> => {
+    const result = await authLogin(email, password);
+    if ("error" in result) return { error: result.error };
+    setUser(result.user);
+    setAuthModalOpen(false);
+    return {};
+  }, []);
+
+  const loginWithGoogle = useCallback(async (): Promise<void> => {
+    await authLoginWithGoogle();
+    // リダイレクトが発生するので、以降の処理は /auth/callback で行われる
+  }, []);
+
+  const logout = useCallback(async (): Promise<void> => {
+    await authLogout();
+    setUser(null);
+  }, []);
+
   const updateUser = useCallback(
-    (updates: Partial<Omit<User, "id" | "createdAt" | "maxLikes">>) => {
+    async (updates: Partial<Omit<User, "id" | "createdAt" | "maxLikes">>): Promise<void> => {
       if (!user) return;
-      authUpdateUser(user.id, updates);
-      setUser(getCurrentUser());
+      await authUpdateUser(user.id, updates);
+      const refreshed = await fetchProfile(user.id);
+      if (refreshed) setUser(refreshed);
     },
     [user],
   );
 
-  const login = useCallback((displayName: string): { error?: string } => {
-    const result = authLogin(displayName);
-    if ("error" in result) return { error: result.error };
-    setUser(result.user);
-    setAuthModalOpen(false);
-    return {};
-  }, []);
-
-  const logout = useCallback(() => {
-    authLogout();
-    setUser(null);
-  }, []);
-
   const openAuthModal = useCallback(() => setAuthModalOpen(true), []);
-  const closeAuthModal = useCallback(() => setAuthModalOpen(false), []);
+  const closeAuthModal = useCallback(() => {
+    setAuthModalOpen(false);
+    // Google ユーザーがプロフィール設定をキャンセルした場合はサインアウト
+    if (pendingGoogleUserId) {
+      const supabase = createClient();
+      void supabase.auth.signOut();
+      setPendingGoogleUserId(null);
+    }
+  }, [pendingGoogleUserId]);
 
   const requireAuth = useCallback((): boolean => {
     if (user) return true;
@@ -103,13 +179,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user,
         isLoading,
         register,
+        setupProfile,
         login,
+        loginWithGoogle,
         logout,
         updateUser,
         requireAuth,
         openAuthModal,
         closeAuthModal,
         authModalOpen,
+        pendingGoogleUserId,
       }}
     >
       {children}
