@@ -9,8 +9,7 @@ import { useAuth } from "./AuthProvider";
 import { getFavorite, toggleFavorite } from "@/lib/favorites";
 import type { FavoriteType } from "@/lib/types";
 import { getStampCounts, getUserStamps, toggleStamp } from "@/lib/stamps";
-import { getAverageSliderRatings } from "@/lib/shops";
-import { loadCommentsForShop } from "@/lib/comments";
+import { getShopSliderRatings } from "@/lib/shops";
 import { X, MapPin, Clock, Sparkles, Globe } from "lucide-react";
 
 export function ShopDetailPanel({
@@ -28,24 +27,16 @@ export function ShopDetailPanel({
   );
   const [userStamps, setUserStamps] = useState<StampKey[]>([]);
   const [avgRatings, setAvgRatings] = useState<SliderRatings | null>(null);
-  const [ratingCount, setRatingCount] = useState(0);
 
   const reloadStamps = () => {
     setStampCounts(getStampCounts(shopId));
     setUserStamps(user ? getUserStamps(shopId, user.id) : []);
   };
 
-  const reloadAvg = () => {
-    setAvgRatings(getAverageSliderRatings(shopId));
-    setRatingCount(
-      loadCommentsForShop(shopId).filter((c) => c.sliderRatings !== null).length
-    );
-  };
-
   useEffect(() => {
     setFavType(user ? getFavorite(shopId, user.id) : null);
     reloadStamps();
-    reloadAvg();
+    setAvgRatings(getShopSliderRatings(shopId));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId, user]);
 
@@ -258,9 +249,6 @@ export function ShopDetailPanel({
                 <p className="font-serif-it text-[14px] tracking-[0.15em] uppercase text-naranja-deep">
                   みんなの声
                 </p>
-                <span className="text-[10px] font-mono text-ink/50 bg-masa-hi border border-ink/20 rounded-full px-2 py-0.5">
-                  {ratingCount}件の平均
-                </span>
               </div>
               <div className="bg-masa-hi border-2 border-ink rounded-xl px-5 py-4 space-y-4 shadow-[2px_2px_0_var(--ink)]">
                 {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
@@ -298,7 +286,7 @@ export function ShopDetailPanel({
             <div className="flex-1 border-t-2 border-dashed border-ink/60" />
           </div>
 
-          <CommentSection shopId={getShopId(shop)} onRatingsChanged={reloadAvg} />
+          <CommentSection shopId={getShopId(shop)} />
         </div>
       </div>
     </aside>

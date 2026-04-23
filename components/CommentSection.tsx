@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Comment, ReportReason, SliderRatings } from "@/lib/types";
-import { AVATAR_EMOJI, REPORT_REASON_LABEL, SLIDER_RATING_DEF } from "@/lib/types";
+import type { Comment, ReportReason } from "@/lib/types";
+import { AVATAR_EMOJI, REPORT_REASON_LABEL } from "@/lib/types";
 import {
   addComment,
   addReply,
@@ -19,20 +19,12 @@ import { getUserById } from "@/lib/auth";
 import { hasReported, reportComment } from "@/lib/reports";
 
 const MAX_BODY = 200;
-const DEFAULT_SLIDER: SliderRatings = { texture: 2, style: 2, volume: 2, atmosphere: 2 };
 
-export function CommentSection({
-  shopId,
-  onRatingsChanged,
-}: {
-  shopId: string;
-  onRatingsChanged?: () => void;
-}) {
+export function CommentSection({ shopId }: { shopId: string }) {
   const { user, requireAuth } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [body, setBody] = useState("");
-  const [sliderRatings, setSliderRatings] = useState<SliderRatings>(DEFAULT_SLIDER);
   const [error, setError] = useState<string | null>(null);
   const [existingComment, setExistingComment] = useState<Comment | null>(null);
 
@@ -46,7 +38,6 @@ export function CommentSection({
     setExistingComment(
       user ? (findExistingComment(shopId, user.id) ?? null) : null
     );
-    onRatingsChanged?.();
   };
 
   useEffect(() => {
@@ -70,10 +61,8 @@ export function CommentSection({
         nickname: user!.displayName,
         avatarKey: user!.avatarKey,
         body: trimmed,
-        sliderRatings,
       });
       setBody("");
-      setSliderRatings(DEFAULT_SLIDER);
       setError(null);
       reload();
     } catch (err) {
@@ -109,7 +98,6 @@ export function CommentSection({
                 <span className="text-lg leading-none">{AVATAR_EMOJI[user.avatarKey]}</span>
                 <span className="font-display text-[13px] text-ink">{user.displayName}</span>
               </div>
-              <SliderRatingPicker value={sliderRatings} onChange={setSliderRatings} />
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
@@ -209,9 +197,6 @@ function CommentCard({
 
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(c.body);
-  const [editSlider, setEditSlider] = useState<SliderRatings>(
-    c.sliderRatings ?? DEFAULT_SLIDER
-  );
   const [replyOpen, setReplyOpen] = useState(false);
   const [replies, setReplies] = useState<Comment[]>([]);
   const [showReplies, setShowReplies] = useState(false);
@@ -233,7 +218,7 @@ function CommentCard({
   const handleEditSave = () => {
     if (!user) return;
     const trimmed = editBody.trim();
-    editComment(c.id, user.id, trimmed, editSlider);
+    editComment(c.id, user.id, trimmed);
     setEditing(false);
     onChanged();
   };
@@ -263,15 +248,9 @@ function CommentCard({
         )}
       </div>
 
-      {/* スライダー評価表示 */}
-      {c.sliderRatings && !editing && (
-        <SliderRatingsDisplay ratings={c.sliderRatings} />
-      )}
-
       {/* 本文 */}
       {editing ? (
         <div className="mt-2 space-y-2">
-          <SliderRatingPicker value={editSlider} onChange={setEditSlider} />
           <textarea
             value={editBody}
             onChange={(e) => setEditBody(e.target.value)}
@@ -348,7 +327,6 @@ function CommentCard({
                 type="button"
                 onClick={() => {
                   setEditBody(c.body);
-                  setEditSlider(c.sliderRatings ?? DEFAULT_SLIDER);
                   setEditing(true);
                 }}
                 className="text-[11px] font-bold px-3 h-7 rounded-full border-2 border-ink/20 text-ink/50 hover:border-ink hover:text-ink transition-colors"
@@ -593,83 +571,6 @@ function ReportModal({
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-// ─── SliderRatingPicker ───────────────────────────────────────────────────────
-
-function SliderRatingPicker({
-  value,
-  onChange,
-}: {
-  value: SliderRatings;
-  onChange: (v: SliderRatings) => void;
-}) {
-  return (
-    <div className="bg-crema border-2 border-ink rounded-lg px-3 py-3 space-y-4">
-      {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
-        const val = value[key];
-        return (
-          <div key={key}>
-            {/* ラベル行 */}
-            <div className="mb-2">
-              <span className="text-[13px] font-display text-ink font-bold">{label}</span>
-            </div>
-            {/* セレクター行 */}
-            <div className="flex items-center gap-3">
-              <span className="text-[12px] font-display text-ink/80 shrink-0 w-14 text-right leading-tight">{left}</span>
-              <div className="flex gap-2 flex-1 justify-between">
-                {([1, 2, 3, 4] as const).map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => onChange({ ...value, [key]: n })}
-                    aria-label={n <= 2 ? `${left}側 ${n}` : `${right}側 ${n}`}
-                    className={`h-8 w-8 rounded-full border-2 transition-all duration-150 ${
-                      n === val
-                        ? "bg-naranja border-ink shadow-[2px_2px_0_var(--ink)] scale-115"
-                        : "bg-crema border-ink/25 hover:border-naranja/70 hover:bg-naranja/10"
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-[12px] font-display text-ink/80 shrink-0 w-14 leading-tight">{right}</span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ─── SliderRatingsDisplay ─────────────────────────────────────────────────────
-
-function SliderRatingsDisplay({ ratings }: { ratings: SliderRatings }) {
-  return (
-    <div className="mt-2 bg-masa-lo border border-ink/20 rounded-lg px-3 py-2.5 space-y-2.5">
-      {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
-        const val = ratings[key];
-        return (
-          <div key={key} className="space-y-1">
-            <span className="font-serif-it italic text-[12px] tracking-[0.12em] text-naranja-deep block text-center">{label}</span>
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-[12px] font-display font-bold text-ink w-16 text-right shrink-0 leading-tight">{left}</span>
-              <div className="flex gap-1.5 shrink-0">
-                {([1, 2, 3, 4] as const).map((n) => (
-                  <div
-                    key={n}
-                    className={`h-3.5 w-3.5 rounded-full border-2 ${
-                      n === val ? "bg-naranja border-ink shadow-[1px_1px_0_var(--ink)]" : "bg-crema border-ink/30"
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-[12px] font-display font-bold text-ink w-16 shrink-0 leading-tight">{right}</span>
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }
