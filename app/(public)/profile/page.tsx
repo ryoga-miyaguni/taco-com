@@ -139,18 +139,19 @@ export default function ProfilePage() {
     );
     setMyRequests(loadRequestsByUser(user.id));
     setVisitedCount(getVisitedCount(user.id));
-    const allShops = getShops();
-    const m: Record<string, string> = {};
-    allShops.forEach((s) => { m[getShopId(s)] = s.name; });
-    setShopNameById(m);
-    const favTypes: FavoriteType[] = ["want_to_try", "visited", "want_again"];
-    const byType = Object.fromEntries(
-      favTypes.map((t) => {
-        const ids = getShopIdsByFavoriteType(user.id, t);
-        return [t, allShops.filter((s) => ids.has(getShopId(s)))];
-      }),
-    ) as Record<FavoriteType, Shop[]>;
-    setShopsByFavType(byType);
+    void getShops().then((allShops) => {
+      const m: Record<string, string> = {};
+      allShops.forEach((s) => { m[getShopId(s)] = s.name; });
+      setShopNameById(m);
+      const favTypes: FavoriteType[] = ["want_to_try", "visited", "want_again"];
+      const byType = Object.fromEntries(
+        favTypes.map((t) => {
+          const ids = getShopIdsByFavoriteType(user.id, t);
+          return [t, allShops.filter((s) => ids.has(getShopId(s)))];
+        }),
+      ) as Record<FavoriteType, Shop[]>;
+      setShopsByFavType(byType);
+    });
   }, [user]);
 
   if (isLoading || !user) return null;

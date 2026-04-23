@@ -190,12 +190,16 @@ export default function AdminDashboardPage() {
     setAllComments(loadAllComments());
     setUsers(await loadAllUsers());
     setAllReports(loadAllReports());
-    setShopsList(getShops());
+    setShopsList(await getShops());
+    const approved = await loadApprovedShopsPublic();
+    setApprovedShopIds(new Set(approved.map((s) => getShopId(s))));
   };
 
   useEffect(() => { void reload(); }, []);
 
   // ─── 集計 ────────────────────────────────────────────────────────────────
+
+  const [approvedShopIds, setApprovedShopIds] = useState<Set<string>>(new Set());
 
   const topLevelComments = useMemo(() => allComments.filter((c) => !c.parentId), [allComments]);
   const reportedComments = useMemo(
@@ -203,12 +207,6 @@ export default function AdminDashboardPage() {
     [allComments],
   );
   const pendingCount   = useMemo(() => requests.filter((r) => r.status === "pending").length, [requests]);
-
-  const approvedShopIds = useMemo(
-    () => new Set(loadApprovedShopsPublic().map((s) => getShopId(s))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shopsList],
-  );
 
   const shopById = useMemo(() => {
     const m: Record<string, string> = {};

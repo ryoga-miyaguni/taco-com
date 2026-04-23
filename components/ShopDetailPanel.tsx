@@ -36,7 +36,7 @@ export function ShopDetailPanel({
   useEffect(() => {
     setFavType(user ? getFavorite(shopId, user.id) : null);
     reloadStamps();
-    setAvgRatings(getShopSliderRatings(shopId));
+    void getShopSliderRatings(shopId).then(setAvgRatings);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId, user]);
 
