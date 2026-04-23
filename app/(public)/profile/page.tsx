@@ -131,27 +131,32 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) return;
-    const all = loadAllComments();
-    setMyComments(
-      all
-        .filter((c) => c.userId === user.id && c.parentId === null)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    );
-    setMyRequests(loadRequestsByUser(user.id));
-    setVisitedCount(getVisitedCount(user.id));
-    void getShops().then((allShops) => {
+    void (async () => {
+      const [all, requests, visited, allShops] = await Promise.all([
+        loadAllComments(),
+        loadRequestsByUser(user.id),
+        getVisitedCount(user.id),
+        getShops(),
+      ]);
+      setMyComments(
+        all
+          .filter((c) => c.userId === user.id && c.parentId === null)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      );
+      setMyRequests(requests);
+      setVisitedCount(visited);
       const m: Record<string, string> = {};
       allShops.forEach((s) => { m[getShopId(s)] = s.name; });
       setShopNameById(m);
       const favTypes: FavoriteType[] = ["want_to_try", "visited", "want_again"];
-      const byType = Object.fromEntries(
-        favTypes.map((t) => {
-          const ids = getShopIdsByFavoriteType(user.id, t);
-          return [t, allShops.filter((s) => ids.has(getShopId(s)))];
+      const byTypeEntries = await Promise.all(
+        favTypes.map(async (t) => {
+          const ids = await getShopIdsByFavoriteType(user.id, t);
+          return [t, allShops.filter((s) => ids.has(getShopId(s)))] as const;
         }),
-      ) as Record<FavoriteType, Shop[]>;
-      setShopsByFavType(byType);
-    });
+      );
+      setShopsByFavType(Object.fromEntries(byTypeEntries) as Record<FavoriteType, Shop[]>);
+    })();
   }, [user]);
 
   if (isLoading || !user) return null;

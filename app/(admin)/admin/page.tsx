@@ -186,12 +186,19 @@ export default function AdminDashboardPage() {
   const [shopsList, setShopsList]   = useState<Shop[]>([]);
 
   const reload = async () => {
-    setRequests(loadAllRequests());
-    setAllComments(loadAllComments());
-    setUsers(await loadAllUsers());
-    setAllReports(loadAllReports());
-    setShopsList(await getShops());
-    const approved = await loadApprovedShopsPublic();
+    const [requests, comments, users, reports, shops, approved] = await Promise.all([
+      loadAllRequests(),
+      loadAllComments(),
+      loadAllUsers(),
+      loadAllReports(),
+      getShops(),
+      loadApprovedShopsPublic(),
+    ]);
+    setRequests(requests);
+    setAllComments(comments);
+    setUsers(users);
+    setAllReports(reports);
+    setShopsList(shops);
     setApprovedShopIds(new Set(approved.map((s) => getShopId(s))));
   };
 
