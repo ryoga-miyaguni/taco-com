@@ -12,6 +12,7 @@ export type Shop = {
   website?: string;
   instagram?: string;
   x?: string;
+  sliderRatings?: SliderRatings;
 };
 
 export const SHOP_TYPE_LABEL: Record<ShopType, string> = {

@@ -13,7 +13,8 @@ import {
   SHOP_TYPE_LABEL, REPORT_REASON_LABEL,
   RESIDENCE_LABEL, TRANSPORT_LABEL, SHELL_LABEL, SPICE_LABEL,
   SHOP_GOAL_LABEL, FREQUENT_AREA_LABEL, COMPANION_LABEL,
-  type ShopType, type ShopRequest, type Comment, type User, type Report, type Shop,
+  SLIDER_RATING_DEF,
+  type ShopType, type ShopRequest, type Comment, type User, type Report, type Shop, type SliderRatings,
   AVATAR_EMOJI, getShopId,
 } from "@/lib/types";
 import { loadAllRequests, updateRequestStatus } from "@/lib/requests";
@@ -715,6 +716,8 @@ function ShopsTab({
   );
 }
 
+const DEFAULT_SLIDER: SliderRatings = { texture: 2, style: 2, volume: 2, atmosphere: 2 };
+
 function ShopEditModal({ shop: s, sid, onSave, onClose }: {
   shop: Shop; sid: string; onSave: () => void; onClose: () => void;
 }) {
@@ -726,6 +729,8 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
   const [website, setWebsite]     = useState(s.website ?? "");
   const [instagram, setInstagram] = useState(s.instagram ?? "");
   const [x, setX]                 = useState(s.x ?? "");
+  const [sliderRatings, setSliderRatings] = useState<SliderRatings>(s.sliderRatings ?? DEFAULT_SLIDER);
+  const [hasSlider, setHasSlider] = useState(!!s.sliderRatings);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -746,6 +751,7 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
       website:   website.trim()   || undefined,
       instagram: instagram.trim() || undefined,
       x:         x.trim()         || undefined,
+      sliderRatings: hasSlider ? sliderRatings : undefined,
     });
     onSave();
   };
@@ -817,6 +823,53 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
       <Field label="X / Twitter（URL）">
         <input value={x} onChange={(e) => setX(e.target.value)} placeholder="https://x.com/..." className={inputCls} />
       </Field>
+
+      {/* みんなの声（スライダー評価） */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] font-display font-bold text-ink">みんなの声（スライダー評価）</span>
+          <button
+            type="button"
+            onClick={() => setHasSlider((v) => !v)}
+            className={`h-7 px-3 rounded-full text-[11px] font-display border-2 border-ink transition-colors ${
+              hasSlider ? "bg-naranja text-crema" : "bg-crema text-ink hover:bg-masa-hi"
+            }`}
+          >
+            {hasSlider ? "設定あり" : "設定なし"}
+          </button>
+        </div>
+        {hasSlider && (
+          <div className="bg-masa-hi border-2 border-ink/20 rounded-xl px-4 py-3 space-y-4">
+            {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
+              const val = sliderRatings[key];
+              return (
+                <div key={key}>
+                  <p className="text-[12px] font-display font-bold text-ink mb-1.5">{label}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-ink/70 w-14 text-right shrink-0">{left}</span>
+                    <div className="flex gap-2 flex-1 justify-between">
+                      {([1, 2, 3, 4] as const).map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setSliderRatings((prev) => ({ ...prev, [key]: n }))}
+                          className={`h-8 w-8 rounded-full border-2 transition-all ${
+                            n === val
+                              ? "bg-naranja border-ink shadow-[2px_2px_0_var(--ink)]"
+                              : "bg-white border-ink/25 hover:border-naranja/70"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[11px] text-ink/70 w-14 shrink-0">{right}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onClose}
           className="flex-1 h-10 rounded-full border-2 border-ink/20 font-display text-[13px] text-ink/50 hover:border-ink/40 hover:text-ink transition-colors">

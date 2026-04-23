@@ -1,4 +1,4 @@
-import type { AvatarKey, Comment, SliderRatings } from "./types";
+import type { AvatarKey, Comment } from "./types";
 import { deleteLikesForComment } from "./likes";
 import { deleteReportsForComment } from "./reports";
 
@@ -64,7 +64,6 @@ export function addComment(input: {
   nickname: string;
   avatarKey: AvatarKey;
   body: string;
-  sliderRatings: SliderRatings;
 }): Comment {
   const existing = findExistingComment(input.shopId, input.userId);
   if (existing) {
@@ -78,7 +77,7 @@ export function addComment(input: {
     nickname: input.nickname,
     avatarKey: input.avatarKey,
     body: input.body.trim(),
-    sliderRatings: input.sliderRatings,
+    sliderRatings: null,
     parentId: null,
     likeCount: 0,
     isHidden: false,
@@ -128,7 +127,6 @@ export function editComment(
   id: string,
   userId: string,
   body: string,
-  sliderRatings?: SliderRatings
 ): boolean {
   const all = loadAllComments();
   const idx = all.findIndex((c) => c.id === id && c.userId === userId);
@@ -136,7 +134,6 @@ export function editComment(
   all[idx] = {
     ...all[idx],
     body: body.trim(),
-    ...(sliderRatings !== undefined ? { sliderRatings } : {}),
     isEdited: true,
     updatedAt: new Date().toISOString(),
   };
