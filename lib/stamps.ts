@@ -1,51 +1,45 @@
+import { createClient } from "@/lib/supabase/client";
 import type { StampKey, ShopStamp } from "./types";
 import { STAMP_KEYS } from "./types";
 
-const STORAGE_KEY = "taco-com:stamps:v1";
-
-function load(): ShopStamp[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-}
-
-function save(stamps: ShopStamp[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(stamps));
-}
-
-/** 店舗ごとのスタンプ集計 */
-export function getStampCounts(shopId: string): Record<StampKey, number> {
-  const all = load();
+export async function getStampCounts(shopId: string): Promise<Record<StampKey, number>> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("shop_stamps")
+    .select("stamp_key")
+    .eq("shop_id", shopId);
   const counts = Object.fromEntries(STAMP_KEYS.map((k) => [k, 0])) as Record<StampKey, number>;
-  for (const s of all) {
-    if (s.shopId === shopId) counts[s.stampKey]++;
+  for (const row of data ?? []) {
+    const key = (row as { stamp_key: string }).stamp_key as StampKey;
+    if (key in counts) counts[key]++;
   }
   return counts;
 }
 
-/** ユーザーが押したスタンプキー一覧 */
-export function getUserStamps(shopId: string, userId: string): StampKey[] {
-  return load()
-    .filter((s) => s.shopId === shopId && s.userId === userId)
-    .map((s) => s.stampKey);
+export async function getUserStamps(shopId: string, userId: string): Promise<StampKey[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("shop_stamps")
+    .select("stamp_key")
+    .eq("shop_id", shopId)
+    .eq("user_id", userId);
+  return (data ?? []).map((r: { stamp_key: string }) => r.stamp_key as StampKey);
 }
 
-/** トグル: 押していなければ追加、押していれば削除。更新後のユーザースタンプ一覧を返す */
-export function toggleStamp(shopId: string, userId: string, stampKey: StampKey): StampKey[] {
-  const all = load();
-  const idx = all.findIndex(
-    (s) => s.shopId === shopId && s.userId === userId && s.stampKey === stampKey
-  );
-  if (idx >= 0) {
-    all.splice(idx, 1);
+export async function toggleStamp(shopId: string, userId: string, stampKey: StampKey): Promise<StampKey[]> {
+  const supabase = createClient();
+  const current = await getUserStamps(shopId, userId);
+  if (current.includes(stampKey)) {
+    await supabase.from("shop_stamps")
+      .delete()
+      .eq("shop_id", shopId)
+      .eq("user_id", userId)
+      .eq("stamp_key", stampKey);
   } else {
-    all.push({ shopId, userId, stampKey });
+    await supabase.from("shop_stamps").insert({ shop_id: shopId, user_id: userId, stamp_key: stampKey });
   }
-  save(all);
-  return all
-    .filter((s) => s.shopId === shopId && s.userId === userId)
-    .map((s) => s.stampKey);
+  return getUserStamps(shopId, userId);
 }
+
+// 未使用だが型互換のためエクスポート
+export type { ShopStamp };

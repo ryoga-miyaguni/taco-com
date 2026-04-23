@@ -1,62 +1,47 @@
+import { createClient } from "@/lib/supabase/client";
 import type { Report, ReportReason } from "./types";
 import { incrementReportCount } from "./comments";
 
-const REPORTS_KEY = "taco-com:reports:v1";
-
-function isBrowser(): boolean {
-  return typeof window !== "undefined";
+export async function loadAllReports(): Promise<Report[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("reports")
+    .select("*")
+    .order("created_at", { ascending: false });
+  return (data ?? []).map((r) => ({
+    commentId: (r as Record<string, string>).comment_id,
+    reporterUserId: (r as Record<string, string>).reporter_user_id,
+    reason: (r as Record<string, string>).reason as ReportReason,
+    createdAt: (r as Record<string, string>).created_at,
+  }));
 }
 
-function loadAll(): Report[] {
-  if (!isBrowser()) return [];
-  const raw = localStorage.getItem(REPORTS_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as Report[]) : [];
-  } catch {
-    return [];
-  }
+export async function deleteReportsForComment(commentId: string): Promise<void> {
+  const supabase = createClient();
+  await supabase.from("reports").delete().eq("comment_id", commentId);
 }
 
-function saveAll(reports: Report[]): void {
-  if (!isBrowser()) return;
-  localStorage.setItem(REPORTS_KEY, JSON.stringify(reports));
+export async function hasReported(commentId: string, userId: string): Promise<boolean> {
+  const supabase = createClient();
+  const { count } = await supabase
+    .from("reports")
+    .select("*", { count: "exact", head: true })
+    .eq("comment_id", commentId)
+    .eq("reporter_user_id", userId);
+  return (count ?? 0) > 0;
 }
 
-// ─── 公開 API ────────────────────────────────────────────────────────────────
-
-/** 全通報を返す（管理者用） */
-export function loadAllReports(): Report[] {
-  return loadAll();
-}
-
-/** コメント削除時に紐づく通報を全削除（comments.ts から呼ぶ） */
-export function deleteReportsForComment(commentId: string): void {
-  saveAll(loadAll().filter((r) => r.commentId !== commentId));
-}
-
-/** 指定ユーザーが指定コメントを通報済みか */
-export function hasReported(commentId: string, userId: string): boolean {
-  return loadAll().some(
-    (r) => r.commentId === commentId && r.reporterUserId === userId,
-  );
-}
-
-/**
- * 通報を追加する。
- * - 重複防止: 同一ユーザーは1コメントにつき1通報
- * - 3件に達したら comments の isHidden を true にする
- * @returns true=通報成功 / false=重複
- */
-export function reportComment(commentId: string, userId: string, reason: ReportReason): boolean {
-  if (hasReported(commentId, userId)) return false;
-
-  const all = loadAll();
-  all.push({ commentId, reporterUserId: userId, reason, createdAt: new Date().toISOString() });
-  saveAll(all);
-
-  // comments.ts 側で reportCount++ & 3件で isHidden=true
-  incrementReportCount(commentId);
+export async function reportComment(commentId: string, userId: string, reason: ReportReason): Promise<boolean> {
+  if (await hasReported(commentId, userId)) return false;
+  const supabase = createClient();
+  await supabase.from("reports").insert({
+    comment_id: commentId,
+    reporter_user_id: userId,
+    reason,
+    created_at: new Date().toISOString(),
+  });
+  await incrementReportCount(commentId);
   return true;
 }
+
+export type { Report };
