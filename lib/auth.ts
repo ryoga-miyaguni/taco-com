@@ -99,8 +99,18 @@ export async function register(
     email: input.email.trim(),
     password: input.password,
   });
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[register] signUp error:", error.code, error.message);
+    return { error: error.message };
+  }
   if (!data.user) return { error: "登録に失敗しました" };
+  // メール確認が有効な場合 session が null。RLSでprofiles INSERTができないため明示的にエラー
+  if (!data.session) {
+    console.error("[register] signUp returned no session — email confirmation likely enabled in Supabase Auth settings");
+    return {
+      error: "メール認証が必要な設定になっています。Supabase Dashboard の Authentication → Providers → Email で『Confirm email』をオフにしてください。",
+    };
+  }
 
   const { error: profileError } = await supabase.from("profiles").insert({
     id: data.user.id,
@@ -118,7 +128,10 @@ export async function register(
     companion_type: input.companionType ?? null,
     residence_city: input.residenceCity ?? null,
   });
-  if (profileError) return { error: profileError.message };
+  if (profileError) {
+    console.error("[register] profiles INSERT error:", profileError.code, profileError.message);
+    return { error: profileError.message };
+  }
 
   const profile = await fetchProfile(data.user.id);
   if (!profile) return { error: "プロフィールの取得に失敗しました" };
@@ -171,11 +184,17 @@ export async function login(
     email: email.trim(),
     password,
   });
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[login] signInWithPassword error:", error.code, error.message);
+    return { error: error.message };
+  }
   if (!data.user) return { error: "ログインに失敗しました" };
 
   const profile = await fetchProfile(data.user.id);
-  if (!profile) return { error: "プロフィールが見つかりません" };
+  if (!profile) {
+    console.error("[login] profile not found for user", data.user.id);
+    return { error: "プロフィールが見つかりません" };
+  }
   if (profile.isBanned) {
     await supabase.auth.signOut();
     return { error: "このアカウントは利用停止になっています" };
@@ -192,7 +211,10 @@ export async function loginWithGoogle(): Promise<{ error?: string }> {
       redirectTo: `${window.location.origin}/auth/callback`,
     },
   });
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[loginWithGoogle] signInWithOAuth error:", error.message);
+    return { error: error.message };
+  }
   return {};
 }
 

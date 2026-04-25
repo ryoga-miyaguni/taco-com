@@ -419,8 +419,9 @@ export function AuthModal() {
 
   const handleGoogleLogin = async () => {
     setError(null);
-    await loginWithGoogle();
-    // ページがリダイレクトされるので以降は実行されない
+    const result = await loginWithGoogle();
+    // 成功時はページがリダイレクトされるので以降は実行されない
+    if (result.error) setError(result.error);
   };
 
   // ─── Register step 1 → step 2 ─────────────────────────────────────────────

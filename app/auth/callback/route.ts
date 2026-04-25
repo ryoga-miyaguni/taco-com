@@ -6,6 +6,17 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/";
+  const oauthError = searchParams.get("error");
+  const oauthErrorDescription = searchParams.get("error_description");
+
+  // OAuth プロバイダ側でエラー発生（ユーザーが拒否、設定不備など）
+  if (oauthError) {
+    console.error("[/auth/callback] OAuth provider error:", oauthError, oauthErrorDescription);
+    const errUrl = new URL("/", origin);
+    errUrl.searchParams.set("auth_error", oauthError);
+    if (oauthErrorDescription) errUrl.searchParams.set("auth_error_description", oauthErrorDescription);
+    return NextResponse.redirect(errUrl);
+  }
 
   if (code) {
     const cookieStore = await cookies();
@@ -29,12 +40,24 @@ export async function GET(request: Request) {
       },
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return response;
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+    if (error) {
+      console.error("[/auth/callback] exchangeCodeForSession failed:", error.code, error.message);
+      const errUrl = new URL("/", origin);
+      errUrl.searchParams.set("auth_error", "code_exchange_failed");
+      errUrl.searchParams.set("auth_error_description", error.message);
+      return NextResponse.redirect(errUrl);
     }
+    if (!data.session) {
+      console.error("[/auth/callback] exchangeCodeForSession returned no session");
+      const errUrl = new URL("/", origin);
+      errUrl.searchParams.set("auth_error", "no_session");
+      return NextResponse.redirect(errUrl);
+    }
+    return response;
   }
 
-  // コードなし、またはエラー時はトップへ
+  // code も error もない不正アクセス
+  console.warn("[/auth/callback] no code and no error in callback URL");
   return NextResponse.redirect(`${origin}/`);
 }

@@ -33,7 +33,7 @@ type AuthContextValue = {
   /** メール+パスワードでログイン */
   login: (email: string, password: string) => Promise<{ error?: string }>;
   /** Google OAuth ログイン */
-  loginWithGoogle: () => Promise<void>;
+  loginWithGoogle: () => Promise<{ error?: string }>;
   /** ログアウト */
   logout: () => Promise<void>;
   /** プロフィール更新 */
@@ -142,9 +142,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return {};
   }, []);
 
-  const loginWithGoogle = useCallback(async (): Promise<void> => {
-    await authLoginWithGoogle();
-    // リダイレクトが発生するので、以降の処理は /auth/callback で行われる
+  const loginWithGoogle = useCallback(async (): Promise<{ error?: string }> => {
+    const result = await authLoginWithGoogle();
+    // 成功時はリダイレクトが発生するので以降は /auth/callback で処理される
+    return result;
   }, []);
 
   const logout = useCallback(async (): Promise<void> => {
