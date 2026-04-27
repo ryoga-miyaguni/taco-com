@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { X, ChevronLeft, Mail } from "lucide-react";
+import { X, ChevronLeft } from "lucide-react";
 import {
   AVATAR_EMOJI,
   COMPANION_LABEL,
@@ -372,9 +372,16 @@ export function AuthModal() {
   const [companionType, setCompanionType] = useState<CompanionType | "">("");
   const [residenceCity, setResidenceCity] = useState("");
 
+  const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
+  const [confirmedEmail, setConfirmedEmail] = useState("");
+
   const ignoreBackdropRef = useRef(false);
   useEffect(() => {
-    if (!authModalOpen) return;
+    if (!authModalOpen) {
+      setEmailConfirmationSent(false);
+      setConfirmedEmail("");
+      return;
+    }
     ignoreBackdropRef.current = true;
     const id = requestAnimationFrame(() => { ignoreBackdropRef.current = false; });
     return () => cancelAnimationFrame(id);
@@ -478,7 +485,12 @@ export function AuthModal() {
         companionType: companionType || undefined,
         residenceCity: residenceCity || undefined,
       });
-      if (result.error) setError(result.error);
+      if (result.emailConfirmationRequired) {
+        setConfirmedEmail(email.trim());
+        setEmailConfirmationSent(true);
+      } else if (result.error) {
+        setError(result.error);
+      }
     }
     setIsSubmitting(false);
   };
@@ -490,6 +502,8 @@ export function AuthModal() {
     setEmail("");
     setPassword("");
     setDisplayName("");
+    setEmailConfirmationSent(false);
+    setConfirmedEmail("");
   };
 
   const handleBackdropPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -569,8 +583,35 @@ export function AuthModal() {
 
         {/* スクロール可能なフォームエリア */}
         <div className="overflow-y-auto mercado-scroll flex-1">
+          {/* ─── 確認メール送信済み ─── */}
+          {emailConfirmationSent && (
+            <div className="px-6 py-8 bg-crema flex flex-col items-center gap-4 text-center">
+              <div className="w-16 h-16 rounded-full bg-naranja border-2 border-ink shadow-[3px_3px_0_var(--ink)] flex items-center justify-center text-3xl">
+                ✉️
+              </div>
+              <div>
+                <h3 className="font-display text-[18px] text-ink leading-tight mb-1">確認メールを送信しました</h3>
+                <p className="text-[13px] text-ink/70 leading-relaxed">
+                  <span className="font-bold text-naranja-deep">{confirmedEmail}</span>
+                  {" "}にメールを送りました。<br />
+                  メール内のリンクをクリックして登録を完了してください。
+                </p>
+              </div>
+              <p className="text-[11px] text-ink/40 font-serif-it">
+                メールが届かない場合は迷惑メールフォルダもご確認ください
+              </p>
+              <button
+                type="button"
+                onClick={closeAuthModal}
+                className="mt-2 font-display text-[13px] h-10 px-6 rounded-full bg-naranja text-crema border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px transition-all"
+              >
+                閉じる
+              </button>
+            </div>
+          )}
+
           {/* ─── ログインフォーム ─── */}
-          {!isGoogleSetup && tab === "login" && (
+          {!emailConfirmationSent && !isGoogleSetup && tab === "login" && (
             <form onSubmit={handleLoginSubmit} className="px-6 py-5 space-y-4 bg-crema">
               <div>
                 <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
@@ -640,7 +681,7 @@ export function AuthModal() {
           )}
 
           {/* ─── 登録 Step 1: メール・パスワード・ニックネーム ─── */}
-          {!isGoogleSetup && tab === "register" && step === 1 && (
+          {!emailConfirmationSent && !isGoogleSetup && tab === "register" && step === 1 && (
             <form onSubmit={handleStep1Next} className="px-6 py-5 space-y-4 bg-crema">
               <div>
                 <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
@@ -747,7 +788,7 @@ export function AuthModal() {
           )}
 
           {/* ─── Step 2 / Google setup: プロフィール設定 ─── */}
-          {(isGoogleSetup || (tab === "register" && step === 2)) && (
+          {!emailConfirmationSent && (isGoogleSetup || (tab === "register" && step === 2)) && (
             <form onSubmit={handleStep2Submit} className="px-6 py-5 bg-crema">
               <ProfileForm
                 displayName={displayName} setDisplayName={setDisplayName}

@@ -54,6 +54,39 @@ export async function GET(request: Request) {
       errUrl.searchParams.set("auth_error", "no_session");
       return NextResponse.redirect(errUrl);
     }
+
+    // メール確認後のコールバック: user_metadata にプロフィールデータがあればプロフィールを作成する。
+    // Google OAuth ユーザーは display_name を持たないため、クライアント側の pendingGoogleUserId フローで処理される。
+    const meta = data.session.user.user_metadata ?? {};
+    if (meta.display_name) {
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", data.session.user.id)
+        .maybeSingle();
+      if (!existing) {
+        const { error: insertError } = await supabase.from("profiles").insert({
+          id: data.session.user.id,
+          display_name: meta.display_name as string,
+          avatar_key: (meta.avatar_key as string) ?? "taco",
+          max_likes: 5,
+          is_banned: false,
+          birth_year: meta.birth_year ?? null,
+          residence: meta.residence ?? null,
+          transport: meta.transport ?? null,
+          shell_preference: meta.shell_preference ?? null,
+          spice_level: meta.spice_level ?? null,
+          shop_goals: meta.shop_goals ?? null,
+          frequent_area: meta.frequent_area ?? null,
+          companion_type: meta.companion_type ?? null,
+          residence_city: meta.residence_city ?? null,
+        });
+        if (insertError) {
+          console.error("[/auth/callback] profile INSERT failed:", insertError.code, insertError.message);
+        }
+      }
+    }
+
     return response;
   }
 

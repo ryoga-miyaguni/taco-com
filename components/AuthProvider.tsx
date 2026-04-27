@@ -27,7 +27,7 @@ type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
   /** メール+パスワードで新規登録 */
-  register: (input: RegisterInput) => Promise<{ error?: string }>;
+  register: (input: RegisterInput) => Promise<{ error?: string; emailConfirmationRequired?: boolean }>;
   /** Google OAuth 後のプロフィール初期設定 */
   setupProfile: (input: ProfileSetupInput) => Promise<{ error?: string }>;
   /** メール+パスワードでログイン */
@@ -110,9 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const register = useCallback(async (input: RegisterInput): Promise<{ error?: string }> => {
+  const register = useCallback(async (input: RegisterInput): Promise<{ error?: string; emailConfirmationRequired?: boolean }> => {
     const result = await authRegister(input);
     if ("error" in result) return { error: result.error };
+    if ("emailConfirmationRequired" in result) return { emailConfirmationRequired: true };
     setUser(result.user);
     setAuthModalOpen(false);
     return {};

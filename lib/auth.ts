@@ -89,7 +89,7 @@ export async function fetchProfile(userId: string): Promise<User | null> {
 /** メール+パスワードで新規登録 */
 export async function register(
   input: RegisterInput,
-): Promise<{ user: User } | { error: string }> {
+): Promise<{ user: User } | { emailConfirmationRequired: true } | { error: string }> {
   const supabase = createClient();
   const name = input.displayName.trim();
   if (!name) return { error: "ニックネームを入力してください" };
@@ -98,18 +98,32 @@ export async function register(
   const { data, error } = await supabase.auth.signUp({
     email: input.email.trim(),
     password: input.password,
+    options: {
+      data: {
+        display_name: name,
+        avatar_key: input.avatarKey,
+        birth_year: input.birthYear ?? null,
+        residence: input.residence ?? null,
+        transport: input.transport ?? null,
+        shell_preference: input.shellPreference ?? null,
+        spice_level: input.spiceLevel ?? null,
+        shop_goals: input.shopGoals ?? null,
+        frequent_area: input.frequentArea ?? null,
+        companion_type: input.companionType ?? null,
+        residence_city: input.residenceCity ?? null,
+      },
+    },
   });
   if (error) {
     console.error("[register] signUp error:", error.code, error.message);
     return { error: error.message };
   }
   if (!data.user) return { error: "登録に失敗しました" };
-  // メール確認が有効な場合 session が null。RLSでprofiles INSERTができないため明示的にエラー
+
+  // メール確認が有効な場合 session が null。確認メール送信済みとして正常終了。
+  // プロフィールは /auth/callback でメール確認後に user_metadata から作成される。
   if (!data.session) {
-    console.error("[register] signUp returned no session — email confirmation likely enabled in Supabase Auth settings");
-    return {
-      error: "メール認証が必要な設定になっています。Supabase Dashboard の Authentication → Providers → Email で『Confirm email』をオフにしてください。",
-    };
+    return { emailConfirmationRequired: true };
   }
 
   const { error: profileError } = await supabase.from("profiles").insert({
