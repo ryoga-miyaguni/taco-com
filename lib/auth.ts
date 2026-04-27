@@ -56,6 +56,9 @@ function mapProfile(row: ProfileRow): User {
 export type RegisterInput = {
   email: string;
   password: string;
+};
+
+export type ProfileSetupInput = {
   displayName: string;
   avatarKey: AvatarKey;
   birthYear?: number;
@@ -68,8 +71,6 @@ export type RegisterInput = {
   companionType?: CompanionType;
   residenceCity?: string;
 };
-
-export type ProfileSetupInput = Omit<RegisterInput, "email" | "password">;
 
 /** プロフィールを取得（存在しなければ null） */
 export async function fetchProfile(userId: string): Promise<User | null> {
@@ -86,70 +87,24 @@ export async function fetchProfile(userId: string): Promise<User | null> {
   return data ? mapProfile(data as ProfileRow) : null;
 }
 
-/** メール+パスワードで新規登録 */
+/** メール+パスワードで新規登録（プロフィール設定はメール確認後にサイト上で行う） */
 export async function register(
   input: RegisterInput,
-): Promise<{ user: User } | { emailConfirmationRequired: true } | { error: string }> {
+): Promise<{ emailConfirmationRequired?: boolean; error?: string }> {
   const supabase = createClient();
-  const name = input.displayName.trim();
-  if (!name) return { error: "ニックネームを入力してください" };
-  if ([...name].length > 10) return { error: "ニックネームは10文字以内にしてください" };
-
   const { data, error } = await supabase.auth.signUp({
     email: input.email.trim(),
     password: input.password,
-    options: {
-      data: {
-        display_name: name,
-        avatar_key: input.avatarKey,
-        birth_year: input.birthYear ?? null,
-        residence: input.residence ?? null,
-        transport: input.transport ?? null,
-        shell_preference: input.shellPreference ?? null,
-        spice_level: input.spiceLevel ?? null,
-        shop_goals: input.shopGoals ?? null,
-        frequent_area: input.frequentArea ?? null,
-        companion_type: input.companionType ?? null,
-        residence_city: input.residenceCity ?? null,
-      },
-    },
   });
   if (error) {
     console.error("[register] signUp error:", error.code, error.message);
     return { error: error.message };
   }
   if (!data.user) return { error: "登録に失敗しました" };
-
-  // メール確認が有効な場合 session が null。確認メール送信済みとして正常終了。
-  // プロフィールは /auth/callback でメール確認後に user_metadata から作成される。
-  if (!data.session) {
-    return { emailConfirmationRequired: true };
-  }
-
-  const { error: profileError } = await supabase.from("profiles").insert({
-    id: data.user.id,
-    display_name: name,
-    avatar_key: input.avatarKey,
-    max_likes: 5,
-    is_banned: false,
-    birth_year: input.birthYear ?? null,
-    residence: input.residence ?? null,
-    transport: input.transport ?? null,
-    shell_preference: input.shellPreference ?? null,
-    spice_level: input.spiceLevel ?? null,
-    shop_goals: input.shopGoals ?? null,
-    frequent_area: input.frequentArea ?? null,
-    companion_type: input.companionType ?? null,
-    residence_city: input.residenceCity ?? null,
-  });
-  if (profileError) {
-    console.error("[register] profiles INSERT error:", profileError.code, profileError.message);
-    return { error: profileError.message };
-  }
-
-  const profile = await fetchProfile(data.user.id);
-  if (!profile) return { error: "プロフィールの取得に失敗しました" };
-  return { user: profile };
+  // session なし = メール確認待ち。session あり = 即時認証（confirm email 無効時）。
+  // どちらの場合もプロフィールは onAuthStateChange がトリガーするモーダルで作成する。
+  if (!data.session) return { emailConfirmationRequired: true };
+  return {};
 }
 
 /** Google OAuth ログイン後にプロフィールを作成（初回のみ） */

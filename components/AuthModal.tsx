@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { X, ChevronLeft } from "lucide-react";
+import { X } from "lucide-react";
 import {
   AVATAR_EMOJI,
   COMPANION_LABEL,
@@ -25,7 +25,6 @@ import {
 import { useAuth } from "./AuthProvider";
 
 type Tab = "login" | "register";
-type Step = 1 | 2;
 
 const AVATAR_KEYS = Object.keys(AVATAR_EMOJI) as AvatarKey[];
 const CURRENT_YEAR = new Date().getFullYear();
@@ -134,7 +133,7 @@ function CityCombobox({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
-// ─── プロフィールフォーム（Step 2 / Google 設定で共用） ───────────────────────
+// ─── プロフィールフォーム（Google / メール確認後 共用） ───────────────────────
 
 type ProfileFormProps = {
   displayName: string;
@@ -159,7 +158,6 @@ type ProfileFormProps = {
   setCompanionType: (v: CompanionType | "") => void;
   residenceCity: string;
   setResidenceCity: (v: string) => void;
-  showNicknameAvatar?: boolean;
 };
 
 function ProfileForm({
@@ -174,51 +172,46 @@ function ProfileForm({
   frequentArea, setFrequentArea,
   companionType, setCompanionType,
   residenceCity, setResidenceCity,
-  showNicknameAvatar = false,
 }: ProfileFormProps) {
   const age = birthYear && /^\d{4}$/.test(birthYear) ? CURRENT_YEAR - Number(birthYear) : null;
   return (
     <div className="space-y-5">
-      {showNicknameAvatar && (
-        <>
-          <div>
-            <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
-              ニックネーム <span className="text-salsa">*</span>
-            </label>
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="例: タコス太郎"
-              maxLength={10}
-              className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
-            />
-            <p className="mt-1 text-[10px] font-mono text-muted-foreground text-right">{[...displayName].length}/10</p>
-          </div>
-          <div>
-            <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
-              アバター
-            </label>
-            <div className="flex gap-2 flex-wrap">
-              {AVATAR_KEYS.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setAvatarKey(key)}
-                  aria-pressed={avatarKey === key}
-                  className={`w-11 h-11 rounded-full border-2 text-xl flex items-center justify-center transition-all ${
-                    avatarKey === key
-                      ? "border-ink bg-naranja shadow-[2px_2px_0_var(--ink)] scale-110"
-                      : "border-ink/30 bg-masa-lo hover:border-ink"
-                  }`}
-                >
-                  {AVATAR_EMOJI[key]}
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
+      <div>
+        <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
+          ニックネーム <span className="text-salsa">*</span>
+        </label>
+        <input
+          type="text"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          placeholder="例: タコス太郎"
+          maxLength={10}
+          className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+        />
+        <p className="mt-1 text-[10px] font-mono text-muted-foreground text-right">{[...displayName].length}/10</p>
+      </div>
+      <div>
+        <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
+          アバター
+        </label>
+        <div className="flex gap-2 flex-wrap">
+          {AVATAR_KEYS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setAvatarKey(key)}
+              aria-pressed={avatarKey === key}
+              className={`w-11 h-11 rounded-full border-2 text-xl flex items-center justify-center transition-all ${
+                avatarKey === key
+                  ? "border-ink bg-naranja shadow-[2px_2px_0_var(--ink)] scale-110"
+                  : "border-ink/30 bg-masa-lo hover:border-ink"
+              }`}
+            >
+              {AVATAR_EMOJI[key]}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div>
         <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
@@ -350,18 +343,19 @@ function ProfileForm({
 export function AuthModal() {
   const { authModalOpen, closeAuthModal, login, register, loginWithGoogle, setupProfile, pendingGoogleUserId } = useAuth();
   const [tab, setTab] = useState<Tab>("login");
-  const [step, setStep] = useState<Step>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Step 1: メール・パスワード
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // Step 1 register: ニックネーム・アバター
-  const [displayName, setDisplayName] = useState("");
-  const [avatarKey, setAvatarKey] = useState<AvatarKey>("taco");
   const [error, setError] = useState<string | null>(null);
 
-  // Step 2 / Google setup: プロフィール
+  // 確認メール送信済み状態
+  const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
+  const [confirmedEmail, setConfirmedEmail] = useState("");
+
+  // プロフィールフォーム用（Google / メール確認後 共用）
+  const [displayName, setDisplayName] = useState("");
+  const [avatarKey, setAvatarKey] = useState<AvatarKey>("taco");
   const [birthYear, setBirthYear] = useState("");
   const [residence, setResidence] = useState<Residence | "">("");
   const [transport, setTransport] = useState<Transport | "">("");
@@ -371,9 +365,6 @@ export function AuthModal() {
   const [frequentArea, setFrequentArea] = useState<FrequentArea | "">("");
   const [companionType, setCompanionType] = useState<CompanionType | "">("");
   const [residenceCity, setResidenceCity] = useState("");
-
-  const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
-  const [confirmedEmail, setConfirmedEmail] = useState("");
 
   const ignoreBackdropRef = useRef(false);
   useEffect(() => {
@@ -387,8 +378,7 @@ export function AuthModal() {
     return () => cancelAnimationFrame(id);
   }, [authModalOpen]);
 
-  // Google ユーザーのプロフィール設定モードの場合はステップ2固定
-  const isGoogleSetup = !!pendingGoogleUserId;
+  const isProfileSetup = !!pendingGoogleUserId;
 
   if (!authModalOpen) return null;
 
@@ -397,11 +387,9 @@ export function AuthModal() {
   };
 
   const validateProfileFields = (): string | null => {
-    if (isGoogleSetup) {
-      const name = displayName.trim();
-      if (!name) return "ニックネームを入力してください";
-      if ([...name].length > 10) return "ニックネームは10文字以内にしてください";
-    }
+    const name = displayName.trim();
+    if (!name) return "ニックネームを入力してください";
+    if ([...name].length > 10) return "ニックネームは10文字以内にしてください";
     const year = Number(birthYear);
     if (!birthYear || !/^\d{4}$/.test(birthYear) || year < 1920 || year > CURRENT_YEAR - 10)
       return "生まれた年を正しく入力してください（例: 1995）";
@@ -427,81 +415,59 @@ export function AuthModal() {
   const handleGoogleLogin = async () => {
     setError(null);
     const result = await loginWithGoogle();
-    // 成功時はページがリダイレクトされるので以降は実行されない
     if (result.error) setError(result.error);
   };
 
-  // ─── Register step 1 → step 2 ─────────────────────────────────────────────
+  // ─── Register submit（メール + パスワードのみ） ────────────────────────────
 
-  const handleStep1Next = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!email.trim()) { setError("メールアドレスを入力してください"); return; }
     if (!password) { setError("パスワードを入力してください"); return; }
     if (password.length < 8) { setError("パスワードは8文字以上にしてください"); return; }
-    const name = displayName.trim();
-    if (!name) { setError("ニックネームを入力してください"); return; }
-    if ([...name].length > 10) { setError("ニックネームは10文字以内にしてください"); return; }
-    setStep(2);
+    setIsSubmitting(true);
+    const result = await register({ email: email.trim(), password });
+    if (result.emailConfirmationRequired) {
+      setConfirmedEmail(email.trim());
+      setEmailConfirmationSent(true);
+    } else if (result.error) {
+      setError(result.error);
+    }
+    // success (confirm email 無効時): onAuthStateChange が profile 未設定を検出してプロフィールフォームを開く
+    setIsSubmitting(false);
   };
 
-  // ─── Register step 2 submit ───────────────────────────────────────────────
+  // ─── Profile setup submit（Google / メール確認後 共用） ───────────────────
 
-  const handleStep2Submit = async (e: React.FormEvent) => {
+  const handleProfileSetupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     const validationError = validateProfileFields();
     if (validationError) { setError(validationError); return; }
     setIsSubmitting(true);
-
-    if (isGoogleSetup) {
-      const result = await setupProfile({
-        displayName: displayName.trim(),
-        avatarKey,
-        birthYear: Number(birthYear),
-        residence: residence as Residence,
-        transport: transport as Transport,
-        shellPreference: shellPreference as ShellPreference,
-        spiceLevel: spiceLevel as SpiceLevel,
-        shopGoals,
-        frequentArea: frequentArea || undefined,
-        companionType: companionType || undefined,
-        residenceCity: residenceCity || undefined,
-      });
-      if (result.error) setError(result.error);
-    } else {
-      const result = await register({
-        email: email.trim(),
-        password,
-        displayName: displayName.trim(),
-        avatarKey,
-        birthYear: Number(birthYear),
-        residence: residence as Residence,
-        transport: transport as Transport,
-        shellPreference: shellPreference as ShellPreference,
-        spiceLevel: spiceLevel as SpiceLevel,
-        shopGoals,
-        frequentArea: frequentArea || undefined,
-        companionType: companionType || undefined,
-        residenceCity: residenceCity || undefined,
-      });
-      if (result.emailConfirmationRequired) {
-        setConfirmedEmail(email.trim());
-        setEmailConfirmationSent(true);
-      } else if (result.error) {
-        setError(result.error);
-      }
-    }
+    const result = await setupProfile({
+      displayName: displayName.trim(),
+      avatarKey,
+      birthYear: Number(birthYear),
+      residence: residence as Residence,
+      transport: transport as Transport,
+      shellPreference: shellPreference as ShellPreference,
+      spiceLevel: spiceLevel as SpiceLevel,
+      shopGoals,
+      frequentArea: frequentArea || undefined,
+      companionType: companionType || undefined,
+      residenceCity: residenceCity || undefined,
+    });
+    if (result.error) setError(result.error);
     setIsSubmitting(false);
   };
 
   const switchTab = (next: Tab) => {
     setTab(next);
-    setStep(1);
     setError(null);
     setEmail("");
     setPassword("");
-    setDisplayName("");
     setEmailConfirmationSent(false);
     setConfirmedEmail("");
   };
@@ -510,11 +476,6 @@ export function AuthModal() {
     if (ignoreBackdropRef.current) return;
     if (e.target === e.currentTarget) closeAuthModal();
   };
-
-  // ─── レンダリング ──────────────────────────────────────────────────────────
-
-  const currentStep = isGoogleSetup ? 2 : step;
-  const isStep2 = currentStep === 2;
 
   return (
     <div
@@ -534,37 +495,21 @@ export function AuthModal() {
 
         {/* ヘッダー */}
         <div className="px-6 pt-6 pb-4 border-b-2 border-ink bg-naranja shrink-0">
-          {!isGoogleSetup && tab === "register" && step === 2 && (
-            <button
-              type="button"
-              onClick={() => { setStep(1); setError(null); }}
-              className="flex items-center gap-1 text-crema/70 hover:text-crema text-[11px] font-serif-it mb-1 transition-colors"
-            >
-              <ChevronLeft className="h-3 w-3" strokeWidth={3} />
-              戻る
-            </button>
-          )}
           <p className="font-serif-it text-[10px] tracking-[0.22em] uppercase text-crema/70">
-            {isGoogleSetup ? "Crear Perfil" : tab === "login" ? "Bienvenido" : isStep2 ? "Mi Perfil" : "Crear Cuenta"}
+            {isProfileSetup ? "Crear Perfil" : tab === "login" ? "Bienvenido" : "Crear Cuenta"}
           </p>
           <h2 className="font-display text-crema text-[22px] leading-tight">
-            {isGoogleSetup
-              ? "プロフィール設定"
-              : tab === "login"
-                ? "ログイン"
-                : isStep2
-                  ? "プロフィール設定"
-                  : "アカウント作成"}
+            {isProfileSetup ? "プロフィール設定" : tab === "login" ? "ログイン" : "アカウント作成"}
           </h2>
-          {isStep2 && (
+          {isProfileSetup && (
             <p className="font-serif-it text-[10px] text-crema/60 mt-0.5">
               あなたの好みを教えてください（後から変更できます）
             </p>
           )}
         </div>
 
-        {/* タブ切り替え（Step 1 のみ、Google 設定モードは除外） */}
-        {!isGoogleSetup && !isStep2 && (
+        {/* タブ切り替え（プロフィール設定・確認メール送信済み時は非表示） */}
+        {!isProfileSetup && !emailConfirmationSent && (
           <div className="flex border-b-2 border-ink shrink-0">
             {(["login", "register"] as Tab[]).map((t) => (
               <button
@@ -583,6 +528,7 @@ export function AuthModal() {
 
         {/* スクロール可能なフォームエリア */}
         <div className="overflow-y-auto mercado-scroll flex-1">
+
           {/* ─── 確認メール送信済み ─── */}
           {emailConfirmationSent && (
             <div className="px-6 py-8 bg-crema flex flex-col items-center gap-4 text-center">
@@ -594,7 +540,7 @@ export function AuthModal() {
                 <p className="text-[13px] text-ink/70 leading-relaxed">
                   <span className="font-bold text-naranja-deep">{confirmedEmail}</span>
                   {" "}にメールを送りました。<br />
-                  メール内のリンクをクリックして登録を完了してください。
+                  メール内のリンクをクリックすると、プロフィール設定画面に進みます。
                 </p>
               </div>
               <p className="text-[11px] text-ink/40 font-serif-it">
@@ -611,7 +557,7 @@ export function AuthModal() {
           )}
 
           {/* ─── ログインフォーム ─── */}
-          {!emailConfirmationSent && !isGoogleSetup && tab === "login" && (
+          {!emailConfirmationSent && !isProfileSetup && tab === "login" && (
             <form onSubmit={handleLoginSubmit} className="px-6 py-5 space-y-4 bg-crema">
               <div>
                 <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
@@ -666,7 +612,7 @@ export function AuthModal() {
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                 </svg>
                 Googleで続ける
               </button>
@@ -680,9 +626,9 @@ export function AuthModal() {
             </form>
           )}
 
-          {/* ─── 登録 Step 1: メール・パスワード・ニックネーム ─── */}
-          {!emailConfirmationSent && !isGoogleSetup && tab === "register" && step === 1 && (
-            <form onSubmit={handleStep1Next} className="px-6 py-5 space-y-4 bg-crema">
+          {/* ─── 新規登録フォーム（メール + パスワードのみ） ─── */}
+          {!emailConfirmationSent && !isProfileSetup && tab === "register" && (
+            <form onSubmit={handleRegisterSubmit} className="px-6 py-5 space-y-4 bg-crema">
               <div>
                 <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
                   メールアドレス
@@ -709,53 +655,17 @@ export function AuthModal() {
                   className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
                 />
               </div>
-              <div>
-                <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
-                  ニックネーム
-                </label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="例: タコス太郎"
-                  maxLength={10}
-                  className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
-                />
-                <p className="mt-1 text-[10px] font-mono text-muted-foreground text-right">{[...displayName].length}/10</p>
-              </div>
-              <div>
-                <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
-                  アバター
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {AVATAR_KEYS.map((key) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => setAvatarKey(key)}
-                      aria-pressed={avatarKey === key}
-                      className={`w-11 h-11 rounded-full border-2 text-xl flex items-center justify-center transition-all ${
-                        avatarKey === key
-                          ? "border-ink bg-naranja shadow-[2px_2px_0_var(--ink)] scale-110"
-                          : "border-ink/30 bg-masa-lo hover:border-ink"
-                      }`}
-                    >
-                      {AVATAR_EMOJI[key]}
-                    </button>
-                  ))}
-                </div>
-              </div>
               {error && (
                 <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">
                   {error}
                 </p>
               )}
-
               <button
                 type="submit"
-                className="w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all"
+                disabled={isSubmitting}
+                className="w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all disabled:opacity-60"
               >
-                次へ →
+                {isSubmitting ? "送信中…" : "確認メールを送る →"}
               </button>
 
               <div className="relative flex items-center gap-2">
@@ -773,7 +683,7 @@ export function AuthModal() {
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
                   <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                 </svg>
                 Googleで続ける
               </button>
@@ -787,9 +697,9 @@ export function AuthModal() {
             </form>
           )}
 
-          {/* ─── Step 2 / Google setup: プロフィール設定 ─── */}
-          {!emailConfirmationSent && (isGoogleSetup || (tab === "register" && step === 2)) && (
-            <form onSubmit={handleStep2Submit} className="px-6 py-5 bg-crema">
+          {/* ─── プロフィール設定（Google / メール確認後 共用） ─── */}
+          {isProfileSetup && (
+            <form onSubmit={handleProfileSetupSubmit} className="px-6 py-5 bg-crema">
               <ProfileForm
                 displayName={displayName} setDisplayName={setDisplayName}
                 avatarKey={avatarKey} setAvatarKey={setAvatarKey}
@@ -802,7 +712,6 @@ export function AuthModal() {
                 frequentArea={frequentArea} setFrequentArea={setFrequentArea}
                 companionType={companionType} setCompanionType={setCompanionType}
                 residenceCity={residenceCity} setResidenceCity={setResidenceCity}
-                showNicknameAvatar={isGoogleSetup}
               />
 
               {error && (

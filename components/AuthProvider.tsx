@@ -112,10 +112,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = useCallback(async (input: RegisterInput): Promise<{ error?: string; emailConfirmationRequired?: boolean }> => {
     const result = await authRegister(input);
-    if ("error" in result) return { error: result.error };
-    if ("emailConfirmationRequired" in result) return { emailConfirmationRequired: true };
-    setUser(result.user);
-    setAuthModalOpen(false);
+    if (result.error) return { error: result.error };
+    if (result.emailConfirmationRequired) return { emailConfirmationRequired: true };
+    // session 即時作成（confirm email 無効時）: onAuthStateChange が profile 未設定を検出してモーダルを開く
     return {};
   }, []);
 
