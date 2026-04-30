@@ -114,7 +114,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const result = await authRegister(input);
     if (result.error) return { error: result.error };
     if (result.emailConfirmationRequired) return { emailConfirmationRequired: true };
-    // session 即時作成（confirm email 無効時）: onAuthStateChange が profile 未設定を検出してモーダルを開く
+    if (result.pendingProfileUserId) {
+      // session 即時作成（confirm email 無効時）: プロフィール設定フォームへ直接切り替える
+      setPendingGoogleUserId(result.pendingProfileUserId);
+    }
     return {};
   }, []);
 
@@ -140,8 +143,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (result.user) {
       setUser(result.user);
       setAuthModalOpen(false);
+    } else if (result.pendingProfileUserId) {
+      // プロフィール未設定: プロフィール設定フォームへ直接切り替える
+      setPendingGoogleUserId(result.pendingProfileUserId);
     }
-    // user なし = プロフィール未設定。onAuthStateChange が検出してプロフィール設定フォームを開く
     return {};
   }, []);
 

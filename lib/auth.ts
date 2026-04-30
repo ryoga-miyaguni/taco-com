@@ -90,7 +90,7 @@ export async function fetchProfile(userId: string): Promise<User | null> {
 /** メール+パスワードで新規登録（プロフィール設定はメール確認後にサイト上で行う） */
 export async function register(
   input: RegisterInput,
-): Promise<{ emailConfirmationRequired?: boolean; error?: string }> {
+): Promise<{ pendingProfileUserId?: string; emailConfirmationRequired?: boolean; error?: string }> {
   const supabase = createClient();
   const { data, error } = await supabase.auth.signUp({
     email: input.email.trim(),
@@ -101,10 +101,9 @@ export async function register(
     return { error: error.message };
   }
   if (!data.user) return { error: "登録に失敗しました" };
-  // session なし = メール確認待ち。session あり = 即時認証（confirm email 無効時）。
-  // どちらの場合もプロフィールは onAuthStateChange がトリガーするモーダルで作成する。
   if (!data.session) return { emailConfirmationRequired: true };
-  return {};
+  // session あり = 即時認証（confirm email 無効時）
+  return { pendingProfileUserId: data.user.id };
 }
 
 /** Google OAuth ログイン後にプロフィールを作成（初回のみ） */
@@ -147,7 +146,7 @@ export async function createProfileForOAuthUser(
 export async function login(
   email: string,
   password: string,
-): Promise<{ user?: User; error?: string }> {
+): Promise<{ user?: User; pendingProfileUserId?: string; error?: string }> {
   const supabase = createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email: email.trim(),
@@ -161,8 +160,8 @@ export async function login(
 
   const profile = await fetchProfile(data.user.id);
   if (!profile) {
-    // プロフィール未設定（新規登録直後など）— onAuthStateChange がプロフィール設定フォームを開く
-    return {};
+    // プロフィール未設定（新規登録直後など）— 呼び出し元がプロフィール設定フォームを開く
+    return { pendingProfileUserId: data.user.id };
   }
   if (profile.isBanned) {
     await supabase.auth.signOut();
