@@ -380,6 +380,11 @@ export function AuthModal() {
 
   const isProfileSetup = !!pendingGoogleUserId;
 
+  // プロフィール設定フォームに切り替わるとき isSubmitting をリセットする
+  useEffect(() => {
+    if (isProfileSetup) setIsSubmitting(false);
+  }, [isProfileSetup]);
+
   if (!authModalOpen) return null;
 
   const toggleGoal = (goal: ShopGoal) => {
@@ -407,9 +412,12 @@ export function AuthModal() {
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
-    const result = await login(email, password);
-    if (result.error) setError(result.error);
-    setIsSubmitting(false);
+    try {
+      const result = await login(email, password);
+      if (result.error) setError(result.error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleGoogleLogin = async () => {
@@ -427,15 +435,18 @@ export function AuthModal() {
     if (!password) { setError("パスワードを入力してください"); return; }
     if (password.length < 8) { setError("パスワードは8文字以上にしてください"); return; }
     setIsSubmitting(true);
-    const result = await register({ email: email.trim(), password });
-    if (result.emailConfirmationRequired) {
-      setConfirmedEmail(email.trim());
-      setEmailConfirmationSent(true);
-    } else if (result.error) {
-      setError(result.error);
+    try {
+      const result = await register({ email: email.trim(), password });
+      if (result.emailConfirmationRequired) {
+        setConfirmedEmail(email.trim());
+        setEmailConfirmationSent(true);
+      } else if (result.error) {
+        setError(result.error);
+      }
+      // success (confirm email 無効時): onAuthStateChange が profile 未設定を検出してプロフィールフォームを開く
+    } finally {
+      setIsSubmitting(false);
     }
-    // success (confirm email 無効時): onAuthStateChange が profile 未設定を検出してプロフィールフォームを開く
-    setIsSubmitting(false);
   };
 
   // ─── Profile setup submit（Google / メール確認後 共用） ───────────────────
@@ -446,21 +457,24 @@ export function AuthModal() {
     const validationError = validateProfileFields();
     if (validationError) { setError(validationError); return; }
     setIsSubmitting(true);
-    const result = await setupProfile({
-      displayName: displayName.trim(),
-      avatarKey,
-      birthYear: Number(birthYear),
-      residence: residence as Residence,
-      transport: transport as Transport,
-      shellPreference: shellPreference as ShellPreference,
-      spiceLevel: spiceLevel as SpiceLevel,
-      shopGoals,
-      frequentArea: frequentArea || undefined,
-      companionType: companionType || undefined,
-      residenceCity: residenceCity || undefined,
-    });
-    if (result.error) setError(result.error);
-    setIsSubmitting(false);
+    try {
+      const result = await setupProfile({
+        displayName: displayName.trim(),
+        avatarKey,
+        birthYear: Number(birthYear),
+        residence: residence as Residence,
+        transport: transport as Transport,
+        shellPreference: shellPreference as ShellPreference,
+        spiceLevel: spiceLevel as SpiceLevel,
+        shopGoals,
+        frequentArea: frequentArea || undefined,
+        companionType: companionType || undefined,
+        residenceCity: residenceCity || undefined,
+      });
+      if (result.error) setError(result.error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const switchTab = (next: Tab) => {

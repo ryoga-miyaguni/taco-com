@@ -147,7 +147,7 @@ export async function createProfileForOAuthUser(
 export async function login(
   email: string,
   password: string,
-): Promise<{ user: User } | { error: string }> {
+): Promise<{ user?: User; error?: string }> {
   const supabase = createClient();
   const { data, error } = await supabase.auth.signInWithPassword({
     email: email.trim(),
@@ -161,8 +161,8 @@ export async function login(
 
   const profile = await fetchProfile(data.user.id);
   if (!profile) {
-    console.error("[login] profile not found for user", data.user.id);
-    return { error: "プロフィールが見つかりません" };
+    // プロフィール未設定（新規登録直後など）— onAuthStateChange がプロフィール設定フォームを開く
+    return {};
   }
   if (profile.isBanned) {
     await supabase.auth.signOut();

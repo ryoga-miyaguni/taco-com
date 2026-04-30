@@ -136,9 +136,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string): Promise<{ error?: string }> => {
     const result = await authLogin(email, password);
-    if ("error" in result) return { error: result.error };
-    setUser(result.user);
-    setAuthModalOpen(false);
+    if (result.error) return { error: result.error };
+    if (result.user) {
+      setUser(result.user);
+      setAuthModalOpen(false);
+    }
+    // user なし = プロフィール未設定。onAuthStateChange が検出してプロフィール設定フォームを開く
     return {};
   }, []);
 
