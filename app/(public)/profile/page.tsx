@@ -97,7 +97,7 @@ function ProfileTag({ children }: { children: React.ReactNode }) {
 // ─── メインページ ────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
-  const { user, logout, updateUser, isLoading } = useAuth();
+  const { user, logout, updateUser, changePassword, isLoading } = useAuth();
   const router = useRouter();
 
   const [myComments, setMyComments] = useState<Comment[]>([]);
@@ -122,6 +122,15 @@ export default function ProfilePage() {
   const [cityQuery, setCityQuery] = useState("");
   const [cityOpen, setCityOpen] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+
+  // パスワード変更フォーム
+  const [pwOpen, setPwOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [pwSubmitting, setPwSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -695,8 +704,118 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {/* ログアウト */}
-        <div className="pt-4 border-t-2 border-dashed border-ink/30">
+        {/* アカウント設定 */}
+        <section className="pt-4 border-t-2 border-dashed border-ink/30 space-y-3">
+          <h2 className="font-serif-it text-[10px] tracking-[0.22em] uppercase text-naranja-deep">アカウント設定</h2>
+
+          {/* パスワード変更（メール登録ユーザーのみ） */}
+          {user.authProvider === "email" && (
+            <div className="border-2 border-ink rounded-2xl bg-crema overflow-hidden">
+              <button
+                type="button"
+                onClick={() => {
+                  setPwOpen((v) => !v);
+                  setPwError(null);
+                  setPwSuccess(false);
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setNewPasswordConfirm("");
+                }}
+                className="w-full px-4 py-3 flex items-center justify-between font-display text-[13px] text-ink hover:bg-masa-hi transition-colors"
+              >
+                <span>🔒 パスワードを変更</span>
+                <span className="text-[11px] text-ink/40">{pwOpen ? "閉じる" : "開く"}</span>
+              </button>
+              {pwOpen && (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setPwError(null);
+                    if (!currentPassword) { setPwError("現在のパスワードを入力してください"); return; }
+                    if (newPassword.length < 8) { setPwError("新しいパスワードは8文字以上にしてください"); return; }
+                    if (newPassword !== newPasswordConfirm) { setPwError("確認用パスワードが一致しません"); return; }
+                    setPwSubmitting(true);
+                    try {
+                      const result = await changePassword(currentPassword, newPassword);
+                      if (result.error) {
+                        setPwError(result.error);
+                      } else {
+                        setPwSuccess(true);
+                        setCurrentPassword("");
+                        setNewPassword("");
+                        setNewPasswordConfirm("");
+                      }
+                    } finally {
+                      setPwSubmitting(false);
+                    }
+                  }}
+                  className="px-4 pb-4 pt-1 space-y-3 border-t-2 border-dashed border-ink/20"
+                >
+                  <div>
+                    <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">現在のパスワード</label>
+                    <input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
+                      新しいパスワード <span className="ml-1 normal-case tracking-normal text-ink/50">（8文字以上）</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">確認用</label>
+                    <input
+                      type="password"
+                      value={newPasswordConfirm}
+                      onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+                    />
+                  </div>
+                  {pwError && (
+                    <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">{pwError}</p>
+                  )}
+                  {pwSuccess && (
+                    <p className="text-[12px] font-bold text-naranja-deep bg-naranja/10 border border-naranja rounded-lg px-3 py-2">
+                      ✅ パスワードを変更しました
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={pwSubmitting}
+                    className="w-full font-display text-[13px] h-10 rounded-full bg-naranja text-crema border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] transition-all disabled:opacity-60"
+                  >
+                    {pwSubmitting ? "更新中…" : "パスワードを更新"}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* Google ログインユーザー向け案内 */}
+          {user.authProvider === "google" && (
+            <div className="border-2 border-ink/30 rounded-2xl bg-masa-lo px-4 py-3">
+              <p className="text-[12px] text-ink/70 leading-relaxed">
+                🔐 Googleアカウントでログインしているため、パスワード変更は不要です。
+              </p>
+            </div>
+          )}
+
+          {/* ログアウト */}
           <button
             type="button"
             onClick={async () => {
@@ -707,7 +826,7 @@ export default function ProfilePage() {
           >
             ログアウト
           </button>
-        </div>
+        </section>
       </main>
     </div>
   );
