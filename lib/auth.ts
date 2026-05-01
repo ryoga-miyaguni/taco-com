@@ -91,16 +91,31 @@ export async function fetchProfile(userId: string): Promise<User | null> {
 export async function register(
   input: RegisterInput,
 ): Promise<{ pendingProfileUserId?: string; error?: string }> {
+  console.log("[register] START", { email: input.email });
   const supabase = createClient();
+  console.log("[register] calling signUp…");
+  const t0 = performance.now();
   const { data, error } = await supabase.auth.signUp({
     email: input.email.trim(),
     password: input.password,
+  });
+  console.log(`[register] signUp returned in ${(performance.now() - t0).toFixed(0)}ms`, {
+    hasUser: !!data?.user,
+    hasSession: !!data?.session,
+    userId: data?.user?.id,
+    errorCode: error?.code,
+    errorMessage: error?.message,
   });
   if (error) {
     console.error("[register] signUp error:", error.code, error.message);
     return { error: error.message };
   }
-  if (!data.user || !data.session) return { error: "登録に失敗しました" };
+  if (!data.user) return { error: "登録に失敗しました（ユーザーが作成されませんでした）" };
+  if (!data.session) {
+    // Confirm email が ON の場合 session が null になる
+    return { error: "メール確認が有効になっています。Supabase ダッシュボードで Confirm email を OFF にしてください" };
+  }
+  console.log("[register] DONE → pendingProfileUserId =", data.user.id);
   return { pendingProfileUserId: data.user.id };
 }
 
@@ -145,10 +160,19 @@ export async function login(
   email: string,
   password: string,
 ): Promise<{ user?: User; pendingProfileUserId?: string; error?: string }> {
+  console.log("[login] START", { email });
   const supabase = createClient();
+  console.log("[login] calling signInWithPassword…");
+  const t0 = performance.now();
   const { data, error } = await supabase.auth.signInWithPassword({
     email: email.trim(),
     password,
+  });
+  console.log(`[login] signInWithPassword returned in ${(performance.now() - t0).toFixed(0)}ms`, {
+    hasUser: !!data?.user,
+    hasSession: !!data?.session,
+    errorCode: error?.code,
+    errorMessage: error?.message,
   });
   if (error) {
     console.error("[login] signInWithPassword error:", error.code, error.message);
@@ -156,15 +180,18 @@ export async function login(
   }
   if (!data.user) return { error: "ログインに失敗しました" };
 
+  console.log("[login] fetching profile…");
+  const t1 = performance.now();
   const profile = await fetchProfile(data.user.id);
+  console.log(`[login] fetchProfile returned in ${(performance.now() - t1).toFixed(0)}ms`, { hasProfile: !!profile });
   if (!profile) {
-    // プロフィール未設定（新規登録直後など）— 呼び出し元がプロフィール設定フォームを開く
     return { pendingProfileUserId: data.user.id };
   }
   if (profile.isBanned) {
     await supabase.auth.signOut();
     return { error: "このアカウントは利用停止になっています" };
   }
+  console.log("[login] DONE → user =", profile.id);
   return { user: profile };
 }
 

@@ -348,18 +348,25 @@ export function AuthModal() {
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[AuthModal.handleLoginSubmit] START");
     setError(null);
     setIsSubmitting(true);
     try {
       const result = await login(email, password);
+      console.log("[AuthModal.handleLoginSubmit] login returned", result);
       if (result.error) setError(result.error);
+    } catch (e) {
+      console.error("[AuthModal.handleLoginSubmit] EXCEPTION:", e);
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
+      console.log("[AuthModal.handleLoginSubmit] finally → setIsSubmitting(false)");
       setIsSubmitting(false);
     }
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log("[AuthModal.handleRegisterSubmit] START");
     setError(null);
     if (!email.trim()) { setError("メールアドレスを入力してください"); return; }
     if (!password) { setError("パスワードを入力してください"); return; }
@@ -367,9 +374,13 @@ export function AuthModal() {
     setIsSubmitting(true);
     try {
       const result = await register({ email: email.trim(), password });
+      console.log("[AuthModal.handleRegisterSubmit] register returned", result);
       if (result.error) setError(result.error);
-      // 成功時は isProfileSetup が true になりプロフィールフォームへ切り替わる
+    } catch (e) {
+      console.error("[AuthModal.handleRegisterSubmit] EXCEPTION:", e);
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
+      console.log("[AuthModal.handleRegisterSubmit] finally → setIsSubmitting(false)");
       setIsSubmitting(false);
     }
   };

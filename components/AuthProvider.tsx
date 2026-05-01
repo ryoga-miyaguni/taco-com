@@ -71,7 +71,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         const profile = await fetchProfile(session.user.id);
         if (!profile) {
-          // Google OAuth 等でプロフィール未設定
           setPendingGoogleUserId(session.user.id);
           setAuthModalOpen(true);
         } else if (profile.isBanned) {
@@ -84,26 +83,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     // セッション変化を監視
+    // ⚠️ Supabase 公式の警告: onAuthStateChange のコールバック内で
+    // 他の supabase 関数を await すると client がデッドロックする。
+    // 非同期処理は setTimeout(..., 0) で次のマクロタスクに逃がす。
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (session?.user) {
-          const profile = await fetchProfile(session.user.id);
-          if (!profile) {
-            setPendingGoogleUserId(session.user.id);
-            setAuthModalOpen(true);
-            setUser(null);
-          } else if (profile.isBanned) {
-            await supabase.auth.signOut();
-            setUser(null);
+      (event, session) => {
+        console.log("[onAuthStateChange]", event, { hasSession: !!session?.user });
+        setTimeout(async () => {
+          if (session?.user) {
+            const profile = await fetchProfile(session.user.id);
+            console.log("[onAuthStateChange] profile fetched", { hasProfile: !!profile });
+            if (!profile) {
+              setPendingGoogleUserId(session.user.id);
+              setAuthModalOpen(true);
+              setUser(null);
+            } else if (profile.isBanned) {
+              await supabase.auth.signOut();
+              setUser(null);
+            } else {
+              setUser(profile);
+              setPendingGoogleUserId(null);
+            }
           } else {
-            setUser(profile);
+            setUser(null);
             setPendingGoogleUserId(null);
           }
-        } else {
-          setUser(null);
-          setPendingGoogleUserId(null);
-        }
-        if (event !== "INITIAL_SESSION") setIsLoading(false);
+          if (event !== "INITIAL_SESSION") setIsLoading(false);
+        }, 0);
       },
     );
 
@@ -111,12 +117,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(async (input: RegisterInput): Promise<{ error?: string }> => {
-    const result = await authRegister(input);
-    if (result.error) return { error: result.error };
-    if (result.pendingProfileUserId) {
-      setPendingGoogleUserId(result.pendingProfileUserId);
+    console.log("[AuthProvider.register] START");
+    try {
+      const result = await authRegister(input);
+      console.log("[AuthProvider.register] authRegister returned", result);
+      if (result.error) return { error: result.error };
+      if (result.pendingProfileUserId) {
+        console.log("[AuthProvider.register] setPendingGoogleUserId →", result.pendingProfileUserId);
+        setPendingGoogleUserId(result.pendingProfileUserId);
+      }
+      return {};
+    } catch (e) {
+      console.error("[AuthProvider.register] EXCEPTION:", e);
+      return { error: e instanceof Error ? e.message : String(e) };
     }
-    return {};
   }, []);
 
   const setupProfile = useCallback(async (input: ProfileSetupInput): Promise<{ error?: string }> => {
@@ -136,16 +150,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [pendingGoogleUserId]);
 
   const login = useCallback(async (email: string, password: string): Promise<{ error?: string }> => {
-    const result = await authLogin(email, password);
-    if (result.error) return { error: result.error };
-    if (result.user) {
-      setUser(result.user);
-      setAuthModalOpen(false);
-    } else if (result.pendingProfileUserId) {
-      // プロフィール未設定: プロフィール設定フォームへ直接切り替える
-      setPendingGoogleUserId(result.pendingProfileUserId);
+    console.log("[AuthProvider.login] START");
+    try {
+      const result = await authLogin(email, password);
+      console.log("[AuthProvider.login] authLogin returned", { hasUser: !!result.user, hasPending: !!result.pendingProfileUserId, error: result.error });
+      if (result.error) return { error: result.error };
+      if (result.user) {
+        setUser(result.user);
+        setAuthModalOpen(false);
+      } else if (result.pendingProfileUserId) {
+        setPendingGoogleUserId(result.pendingProfileUserId);
+      }
+      return {};
+    } catch (e) {
+      console.error("[AuthProvider.login] EXCEPTION:", e);
+      return { error: e instanceof Error ? e.message : String(e) };
     }
-    return {};
   }, []);
 
   const loginWithGoogle = useCallback(async (): Promise<{ error?: string }> => {
