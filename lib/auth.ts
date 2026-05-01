@@ -87,10 +87,10 @@ export async function fetchProfile(userId: string): Promise<User | null> {
   return data ? mapProfile(data as ProfileRow) : null;
 }
 
-/** メール+パスワードで新規登録（プロフィール設定はメール確認後にサイト上で行う） */
+/** メール+パスワードで新規登録 */
 export async function register(
   input: RegisterInput,
-): Promise<{ pendingProfileUserId?: string; emailConfirmationRequired?: boolean; error?: string }> {
+): Promise<{ pendingProfileUserId?: string; error?: string }> {
   const supabase = createClient();
   const { data, error } = await supabase.auth.signUp({
     email: input.email.trim(),
@@ -100,9 +100,7 @@ export async function register(
     console.error("[register] signUp error:", error.code, error.message);
     return { error: error.message };
   }
-  if (!data.user) return { error: "登録に失敗しました" };
-  if (!data.session) return { emailConfirmationRequired: true };
-  // session あり = 即時認証（confirm email 無効時）
+  if (!data.user || !data.session) return { error: "登録に失敗しました" };
   return { pendingProfileUserId: data.user.id };
 }
 

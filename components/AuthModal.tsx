@@ -133,44 +133,28 @@ function CityCombobox({ value, onChange }: { value: string; onChange: (v: string
   );
 }
 
-// ─── プロフィールフォーム（Google / メール確認後 共用） ───────────────────────
+// ─── プロフィールフォーム ────────────────────────────────────────────────────
 
 type ProfileFormProps = {
-  displayName: string;
-  setDisplayName: (v: string) => void;
-  avatarKey: AvatarKey;
-  setAvatarKey: (v: AvatarKey) => void;
-  birthYear: string;
-  setBirthYear: (v: string) => void;
-  residence: Residence | "";
-  setResidence: (v: Residence | "") => void;
-  transport: Transport | "";
-  setTransport: (v: Transport | "") => void;
-  shellPreference: ShellPreference | "";
-  setShellPreference: (v: ShellPreference | "") => void;
-  spiceLevel: SpiceLevel | "";
-  setSpiceLevel: (v: SpiceLevel | "") => void;
-  shopGoals: ShopGoal[];
-  toggleGoal: (g: ShopGoal) => void;
-  frequentArea: FrequentArea | "";
-  setFrequentArea: (v: FrequentArea | "") => void;
-  companionType: CompanionType | "";
-  setCompanionType: (v: CompanionType | "") => void;
-  residenceCity: string;
-  setResidenceCity: (v: string) => void;
+  displayName: string; setDisplayName: (v: string) => void;
+  avatarKey: AvatarKey; setAvatarKey: (v: AvatarKey) => void;
+  birthYear: string; setBirthYear: (v: string) => void;
+  residence: Residence | ""; setResidence: (v: Residence | "") => void;
+  transport: Transport | ""; setTransport: (v: Transport | "") => void;
+  shellPreference: ShellPreference | ""; setShellPreference: (v: ShellPreference | "") => void;
+  spiceLevel: SpiceLevel | ""; setSpiceLevel: (v: SpiceLevel | "") => void;
+  shopGoals: ShopGoal[]; toggleGoal: (g: ShopGoal) => void;
+  frequentArea: FrequentArea | ""; setFrequentArea: (v: FrequentArea | "") => void;
+  companionType: CompanionType | ""; setCompanionType: (v: CompanionType | "") => void;
+  residenceCity: string; setResidenceCity: (v: string) => void;
 };
 
 function ProfileForm({
-  displayName, setDisplayName,
-  avatarKey, setAvatarKey,
-  birthYear, setBirthYear,
-  residence, setResidence,
-  transport, setTransport,
-  shellPreference, setShellPreference,
-  spiceLevel, setSpiceLevel,
-  shopGoals, toggleGoal,
-  frequentArea, setFrequentArea,
-  companionType, setCompanionType,
+  displayName, setDisplayName, avatarKey, setAvatarKey,
+  birthYear, setBirthYear, residence, setResidence,
+  transport, setTransport, shellPreference, setShellPreference,
+  spiceLevel, setSpiceLevel, shopGoals, toggleGoal,
+  frequentArea, setFrequentArea, companionType, setCompanionType,
   residenceCity, setResidenceCity,
 }: ProfileFormProps) {
   const age = birthYear && /^\d{4}$/.test(birthYear) ? CURRENT_YEAR - Number(birthYear) : null;
@@ -191,40 +175,25 @@ function ProfileForm({
         <p className="mt-1 text-[10px] font-mono text-muted-foreground text-right">{[...displayName].length}/10</p>
       </div>
       <div>
-        <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
-          アバター
-        </label>
+        <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">アバター</label>
         <div className="flex gap-2 flex-wrap">
           {AVATAR_KEYS.map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setAvatarKey(key)}
-              aria-pressed={avatarKey === key}
+            <button key={key} type="button" onClick={() => setAvatarKey(key)} aria-pressed={avatarKey === key}
               className={`w-11 h-11 rounded-full border-2 text-xl flex items-center justify-center transition-all ${
-                avatarKey === key
-                  ? "border-ink bg-naranja shadow-[2px_2px_0_var(--ink)] scale-110"
-                  : "border-ink/30 bg-masa-lo hover:border-ink"
-              }`}
-            >
+                avatarKey === key ? "border-ink bg-naranja shadow-[2px_2px_0_var(--ink)] scale-110" : "border-ink/30 bg-masa-lo hover:border-ink"
+              }`}>
               {AVATAR_EMOJI[key]}
             </button>
           ))}
         </div>
       </div>
-
       <div>
         <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
           生まれた年 <span className="text-salsa">*</span>
         </label>
         <div className="flex items-center gap-2">
-          <input
-            type="number"
-            value={birthYear}
-            onChange={(e) => setBirthYear(e.target.value)}
-            placeholder="例: 1995"
-            min={1920}
-            max={CURRENT_YEAR - 10}
+          <input type="number" value={birthYear} onChange={(e) => setBirthYear(e.target.value)}
+            placeholder="例: 1995" min={1920} max={CURRENT_YEAR - 10}
             className="w-32 bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
           />
           {age !== null && age > 0 && age < 120 && (
@@ -232,59 +201,46 @@ function ProfileForm({
           )}
         </div>
       </div>
-
       <div>
         <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
           あなたはどっち？ <span className="text-salsa">*</span>
         </label>
         <div className="flex gap-2">
           {(Object.keys(RESIDENCE_LABEL) as Residence[]).map((r) => (
-            <ChoiceButton key={r} selected={residence === r} onClick={() => setResidence(r)}>
-              {RESIDENCE_LABEL[r]}
-            </ChoiceButton>
+            <ChoiceButton key={r} selected={residence === r} onClick={() => setResidence(r)}>{RESIDENCE_LABEL[r]}</ChoiceButton>
           ))}
         </div>
       </div>
-
       <div>
         <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
           主な移動手段 <span className="text-salsa">*</span>
         </label>
         <div className="flex gap-2">
           {(Object.keys(TRANSPORT_LABEL) as Transport[]).map((t) => (
-            <ChoiceButton key={t} selected={transport === t} onClick={() => setTransport(t)}>
-              {TRANSPORT_LABEL[t]}
-            </ChoiceButton>
+            <ChoiceButton key={t} selected={transport === t} onClick={() => setTransport(t)}>{TRANSPORT_LABEL[t]}</ChoiceButton>
           ))}
         </div>
       </div>
-
       <div>
         <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
           好きな皮のタイプ <span className="text-salsa">*</span>
         </label>
         <div className="flex gap-2">
           {(Object.keys(SHELL_LABEL) as ShellPreference[]).map((s) => (
-            <ChoiceButton key={s} selected={shellPreference === s} onClick={() => setShellPreference(s)}>
-              {SHELL_LABEL[s]}
-            </ChoiceButton>
+            <ChoiceButton key={s} selected={shellPreference === s} onClick={() => setShellPreference(s)}>{SHELL_LABEL[s]}</ChoiceButton>
           ))}
         </div>
       </div>
-
       <div>
         <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
           辛さの耐性 <span className="text-salsa">*</span>
         </label>
         <div className="flex gap-2">
           {(Object.keys(SPICE_LABEL) as SpiceLevel[]).map((s) => (
-            <ChoiceButton key={s} selected={spiceLevel === s} onClick={() => setSpiceLevel(s)}>
-              {SPICE_LABEL[s]}
-            </ChoiceButton>
+            <ChoiceButton key={s} selected={spiceLevel === s} onClick={() => setSpiceLevel(s)}>{SPICE_LABEL[s]}</ChoiceButton>
           ))}
         </div>
       </div>
-
       <div>
         <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
           タコス店に求めること <span className="text-salsa">*</span>
@@ -292,17 +248,13 @@ function ProfileForm({
         </label>
         <div className="flex flex-wrap gap-2">
           {(Object.keys(SHOP_GOAL_LABEL) as ShopGoal[]).map((g) => (
-            <ToggleButton key={g} selected={shopGoals.includes(g)} onClick={() => toggleGoal(g)}>
-              {SHOP_GOAL_LABEL[g]}
-            </ToggleButton>
+            <ToggleButton key={g} selected={shopGoals.includes(g)} onClick={() => toggleGoal(g)}>{SHOP_GOAL_LABEL[g]}</ToggleButton>
           ))}
         </div>
       </div>
-
       <div>
         <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
-          よく行くエリア
-          <span className="ml-1 normal-case tracking-normal text-ink/50">（任意）</span>
+          よく行くエリア <span className="ml-1 normal-case tracking-normal text-ink/50">（任意）</span>
         </label>
         <div className="flex flex-wrap gap-2">
           {(Object.keys(FREQUENT_AREA_LABEL) as FrequentArea[]).map((a) => (
@@ -312,11 +264,9 @@ function ProfileForm({
           ))}
         </div>
       </div>
-
       <div>
         <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
-          誰と行くことが多い？
-          <span className="ml-1 normal-case tracking-normal text-ink/50">（任意）</span>
+          誰と行くことが多い？ <span className="ml-1 normal-case tracking-normal text-ink/50">（任意）</span>
         </label>
         <div className="flex flex-wrap gap-2">
           {(Object.keys(COMPANION_LABEL) as CompanionType[]).map((c) => (
@@ -326,11 +276,9 @@ function ProfileForm({
           ))}
         </div>
       </div>
-
       <div>
         <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-2">
-          住んでいる地域
-          <span className="ml-1 normal-case tracking-normal text-ink/50">（任意）</span>
+          住んでいる地域 <span className="ml-1 normal-case tracking-normal text-ink/50">（任意）</span>
         </label>
         <CityCombobox value={residenceCity} onChange={setResidenceCity} />
       </div>
@@ -344,16 +292,11 @@ export function AuthModal() {
   const { authModalOpen, closeAuthModal, login, register, loginWithGoogle, setupProfile, pendingGoogleUserId } = useAuth();
   const [tab, setTab] = useState<Tab>("login");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // 確認メール送信済み状態
-  const [emailConfirmationSent, setEmailConfirmationSent] = useState(false);
-  const [confirmedEmail, setConfirmedEmail] = useState("");
-
-  // プロフィールフォーム用（Google / メール確認後 共用）
+  // プロフィールフォーム用
   const [displayName, setDisplayName] = useState("");
   const [avatarKey, setAvatarKey] = useState<AvatarKey>("taco");
   const [birthYear, setBirthYear] = useState("");
@@ -368,11 +311,7 @@ export function AuthModal() {
 
   const ignoreBackdropRef = useRef(false);
   useEffect(() => {
-    if (!authModalOpen) {
-      setEmailConfirmationSent(false);
-      setConfirmedEmail("");
-      return;
-    }
+    if (!authModalOpen) return;
     ignoreBackdropRef.current = true;
     const id = requestAnimationFrame(() => { ignoreBackdropRef.current = false; });
     return () => cancelAnimationFrame(id);
@@ -380,18 +319,17 @@ export function AuthModal() {
 
   const isProfileSetup = !!pendingGoogleUserId;
 
-  // プロフィール設定フォームに切り替わるとき isSubmitting をリセットする
+  // プロフィール設定フォームに切り替わった瞬間にスピナーをリセット
   useEffect(() => {
     if (isProfileSetup) setIsSubmitting(false);
   }, [isProfileSetup]);
 
   if (!authModalOpen) return null;
 
-  const toggleGoal = (goal: ShopGoal) => {
+  const toggleGoal = (goal: ShopGoal) =>
     setShopGoals((prev) => prev.includes(goal) ? prev.filter((g) => g !== goal) : [...prev, goal]);
-  };
 
-  const validateProfileFields = (): string | null => {
+  const validateProfile = (): string | null => {
     const name = displayName.trim();
     if (!name) return "ニックネームを入力してください";
     if ([...name].length > 10) return "ニックネームは10文字以内にしてください";
@@ -406,7 +344,7 @@ export function AuthModal() {
     return null;
   };
 
-  // ─── Login submit ──────────────────────────────────────────────────────────
+  // ─── ハンドラ ──────────────────────────────────────────────────────────────
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -420,14 +358,6 @@ export function AuthModal() {
     }
   };
 
-  const handleGoogleLogin = async () => {
-    setError(null);
-    const result = await loginWithGoogle();
-    if (result.error) setError(result.error);
-  };
-
-  // ─── Register submit（メール + パスワードのみ） ────────────────────────────
-
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -437,30 +367,22 @@ export function AuthModal() {
     setIsSubmitting(true);
     try {
       const result = await register({ email: email.trim(), password });
-      if (result.emailConfirmationRequired) {
-        setConfirmedEmail(email.trim());
-        setEmailConfirmationSent(true);
-      } else if (result.error) {
-        setError(result.error);
-      }
-      // success (confirm email 無効時): onAuthStateChange が profile 未設定を検出してプロフィールフォームを開く
+      if (result.error) setError(result.error);
+      // 成功時は isProfileSetup が true になりプロフィールフォームへ切り替わる
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // ─── Profile setup submit（Google / メール確認後 共用） ───────────────────
-
   const handleProfileSetupSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const validationError = validateProfileFields();
-    if (validationError) { setError(validationError); return; }
+    const err = validateProfile();
+    if (err) { setError(err); return; }
     setIsSubmitting(true);
     try {
       const result = await setupProfile({
-        displayName: displayName.trim(),
-        avatarKey,
+        displayName: displayName.trim(), avatarKey,
         birthYear: Number(birthYear),
         residence: residence as Residence,
         transport: transport as Transport,
@@ -477,13 +399,17 @@ export function AuthModal() {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    setError(null);
+    const result = await loginWithGoogle();
+    if (result.error) setError(result.error);
+  };
+
   const switchTab = (next: Tab) => {
     setTab(next);
     setError(null);
     setEmail("");
     setPassword("");
-    setEmailConfirmationSent(false);
-    setConfirmedEmail("");
   };
 
   const handleBackdropPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -491,19 +417,16 @@ export function AuthModal() {
     if (e.target === e.currentTarget) closeAuthModal();
   };
 
+  // ─── レンダリング ──────────────────────────────────────────────────────────
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm p-4"
       onPointerDown={handleBackdropPointerDown}
     >
       <div className="relative w-full max-w-sm paper card-stamp rounded-2xl border-[3px] border-ink shadow-[6px_6px_0_var(--ink)] overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
-        {/* 閉じるボタン */}
-        <button
-          type="button"
-          onClick={closeAuthModal}
-          aria-label="閉じる"
-          className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-crema border-2 border-ink flex items-center justify-center hover:bg-naranja hover:text-crema transition-colors shadow-[2px_2px_0_var(--ink)]"
-        >
+        <button type="button" onClick={closeAuthModal} aria-label="閉じる"
+          className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-crema border-2 border-ink flex items-center justify-center hover:bg-naranja hover:text-crema transition-colors shadow-[2px_2px_0_var(--ink)]">
           <X className="h-3.5 w-3.5" strokeWidth={3} />
         </button>
 
@@ -516,112 +439,53 @@ export function AuthModal() {
             {isProfileSetup ? "プロフィール設定" : tab === "login" ? "ログイン" : "アカウント作成"}
           </h2>
           {isProfileSetup && (
-            <p className="font-serif-it text-[10px] text-crema/60 mt-0.5">
-              あなたの好みを教えてください（後から変更できます）
-            </p>
+            <p className="font-serif-it text-[10px] text-crema/60 mt-0.5">あなたの好みを教えてください（後から変更できます）</p>
           )}
         </div>
 
-        {/* タブ切り替え（プロフィール設定・確認メール送信済み時は非表示） */}
-        {!isProfileSetup && !emailConfirmationSent && (
+        {/* タブ（プロフィール設定時は非表示） */}
+        {!isProfileSetup && (
           <div className="flex border-b-2 border-ink shrink-0">
             {(["login", "register"] as Tab[]).map((t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => switchTab(t)}
+              <button key={t} type="button" onClick={() => switchTab(t)}
                 className={`flex-1 py-2.5 text-[13px] font-display transition-colors ${
                   tab === t ? "bg-crema text-ink" : "bg-masa-lo text-ink/50 hover:bg-masa-hi"
-                }`}
-              >
+                }`}>
                 {t === "login" ? "ログイン" : "新規登録"}
               </button>
             ))}
           </div>
         )}
 
-        {/* スクロール可能なフォームエリア */}
         <div className="overflow-y-auto mercado-scroll flex-1">
 
-          {/* ─── 確認メール送信済み ─── */}
-          {emailConfirmationSent && (
-            <div className="px-6 py-8 bg-crema flex flex-col items-center gap-4 text-center">
-              <div className="w-16 h-16 rounded-full bg-naranja border-2 border-ink shadow-[3px_3px_0_var(--ink)] flex items-center justify-center text-3xl">
-                ✉️
-              </div>
-              <div>
-                <h3 className="font-display text-[18px] text-ink leading-tight mb-1">確認メールを送信しました</h3>
-                <p className="text-[13px] text-ink/70 leading-relaxed">
-                  <span className="font-bold text-naranja-deep">{confirmedEmail}</span>
-                  {" "}にメールを送りました。<br />
-                  メール内のリンクをクリックすると、プロフィール設定画面に進みます。
-                </p>
-              </div>
-              <p className="text-[11px] text-ink/40 font-serif-it">
-                メールが届かない場合は迷惑メールフォルダもご確認ください
-              </p>
-              <button
-                type="button"
-                onClick={closeAuthModal}
-                className="mt-2 font-display text-[13px] h-10 px-6 rounded-full bg-naranja text-crema border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px transition-all"
-              >
-                閉じる
-              </button>
-            </div>
-          )}
-
-          {/* ─── ログインフォーム ─── */}
-          {!emailConfirmationSent && !isProfileSetup && tab === "login" && (
+          {/* ─── ログイン ─── */}
+          {!isProfileSetup && tab === "login" && (
             <form onSubmit={handleLoginSubmit} className="px-6 py-5 space-y-4 bg-crema">
               <div>
-                <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
-                  メールアドレス
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="例: taco@example.com"
-                  autoFocus
-                  className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
-                />
+                <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">メールアドレス</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                  placeholder="例: taco@example.com" autoFocus
+                  className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja" />
               </div>
               <div>
-                <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
-                  パスワード
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">パスワード</label>
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
-                />
+                  className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja" />
               </div>
-              {error && (
-                <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">
-                  {error}
-                </p>
-              )}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all disabled:opacity-60"
-              >
+              {error && <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">{error}</p>}
+              <button type="submit" disabled={isSubmitting}
+                className="w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all disabled:opacity-60">
                 {isSubmitting ? "ログイン中…" : "ログイン →"}
               </button>
-
               <div className="relative flex items-center gap-2">
                 <div className="flex-1 border-t border-ink/20" />
                 <span className="text-[10px] font-serif-it text-ink/40">または</span>
                 <div className="flex-1 border-t border-ink/20" />
               </div>
-
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                className="w-full flex items-center justify-center gap-2 font-display text-[13px] h-11 rounded-full bg-crema text-ink border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:bg-masa-hi transition-colors"
-              >
+              <button type="button" onClick={handleGoogleLogin}
+                className="w-full flex items-center justify-center gap-2 font-display text-[13px] h-11 rounded-full bg-crema text-ink border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:bg-masa-hi transition-colors">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -630,69 +494,42 @@ export function AuthModal() {
                 </svg>
                 Googleで続ける
               </button>
-
               <p className="text-center text-[11px] text-muted-foreground font-serif-it italic">
                 アカウントがない方は{" "}
-                <button type="button" onClick={() => switchTab("register")} className="text-naranja-deep underline">
-                  新規登録
-                </button>
+                <button type="button" onClick={() => switchTab("register")} className="text-naranja-deep underline">新規登録</button>
               </p>
             </form>
           )}
 
-          {/* ─── 新規登録フォーム（メール + パスワードのみ） ─── */}
-          {!emailConfirmationSent && !isProfileSetup && tab === "register" && (
+          {/* ─── 新規登録（メール + パスワードのみ） ─── */}
+          {!isProfileSetup && tab === "register" && (
             <form onSubmit={handleRegisterSubmit} className="px-6 py-5 space-y-4 bg-crema">
               <div>
-                <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
-                  メールアドレス
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="例: taco@example.com"
-                  autoFocus
-                  className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
-                />
+                <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">メールアドレス</label>
+                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                  placeholder="例: taco@example.com" autoFocus
+                  className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja" />
               </div>
               <div>
                 <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
-                  パスワード
-                  <span className="ml-1 normal-case tracking-normal text-ink/50">（8文字以上）</span>
+                  パスワード <span className="ml-1 normal-case tracking-normal text-ink/50">（8文字以上）</span>
                 </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
-                />
+                  className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja" />
               </div>
-              {error && (
-                <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">
-                  {error}
-                </p>
-              )}
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all disabled:opacity-60"
-              >
-                {isSubmitting ? "送信中…" : "確認メールを送る →"}
+              {error && <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">{error}</p>}
+              <button type="submit" disabled={isSubmitting}
+                className="w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all disabled:opacity-60">
+                {isSubmitting ? "登録中…" : "登録する →"}
               </button>
-
               <div className="relative flex items-center gap-2">
                 <div className="flex-1 border-t border-ink/20" />
                 <span className="text-[10px] font-serif-it text-ink/40">または</span>
                 <div className="flex-1 border-t border-ink/20" />
               </div>
-
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                className="w-full flex items-center justify-center gap-2 font-display text-[13px] h-11 rounded-full bg-crema text-ink border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:bg-masa-hi transition-colors"
-              >
+              <button type="button" onClick={handleGoogleLogin}
+                className="w-full flex items-center justify-center gap-2 font-display text-[13px] h-11 rounded-full bg-crema text-ink border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:bg-masa-hi transition-colors">
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
                   <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
@@ -701,17 +538,14 @@ export function AuthModal() {
                 </svg>
                 Googleで続ける
               </button>
-
               <p className="text-center text-[11px] text-muted-foreground font-serif-it italic">
                 すでにアカウントがある方は{" "}
-                <button type="button" onClick={() => switchTab("login")} className="text-naranja-deep underline">
-                  ログイン
-                </button>
+                <button type="button" onClick={() => switchTab("login")} className="text-naranja-deep underline">ログイン</button>
               </p>
             </form>
           )}
 
-          {/* ─── プロフィール設定（Google / メール確認後 共用） ─── */}
+          {/* ─── プロフィール設定（新規登録後 / Google OAuth 後 共用） ─── */}
           {isProfileSetup && (
             <form onSubmit={handleProfileSetupSubmit} className="px-6 py-5 bg-crema">
               <ProfileForm
@@ -727,13 +561,9 @@ export function AuthModal() {
                 companionType={companionType} setCompanionType={setCompanionType}
                 residenceCity={residenceCity} setResidenceCity={setResidenceCity}
               />
-
               {error && (
-                <p className="mt-5 text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">
-                  {error}
-                </p>
+                <p className="mt-5 text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">{error}</p>
               )}
-
               <p className="mt-5 text-center text-[11px] text-muted-foreground leading-relaxed">
                 登録することで{" "}
                 <Link href="/terms" target="_blank" className="underline hover:text-naranja-deep">利用規約</Link>
@@ -741,16 +571,13 @@ export function AuthModal() {
                 <Link href="/privacy" target="_blank" className="underline hover:text-naranja-deep">プライバシーポリシー</Link>
                 {" "}に同意したものとみなされます
               </p>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="mt-4 w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all disabled:opacity-60"
-              >
+              <button type="submit" disabled={isSubmitting}
+                className="mt-4 w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all disabled:opacity-60">
                 {isSubmitting ? "登録中…" : "登録して始める →"}
               </button>
             </form>
           )}
+
         </div>
       </div>
     </div>

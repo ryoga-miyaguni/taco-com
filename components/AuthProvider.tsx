@@ -27,7 +27,7 @@ type AuthContextValue = {
   user: User | null;
   isLoading: boolean;
   /** メール+パスワードで新規登録 */
-  register: (input: RegisterInput) => Promise<{ error?: string; emailConfirmationRequired?: boolean }>;
+  register: (input: RegisterInput) => Promise<{ error?: string }>;
   /** Google OAuth 後のプロフィール初期設定 */
   setupProfile: (input: ProfileSetupInput) => Promise<{ error?: string }>;
   /** メール+パスワードでログイン */
@@ -110,12 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const register = useCallback(async (input: RegisterInput): Promise<{ error?: string; emailConfirmationRequired?: boolean }> => {
+  const register = useCallback(async (input: RegisterInput): Promise<{ error?: string }> => {
     const result = await authRegister(input);
     if (result.error) return { error: result.error };
-    if (result.emailConfirmationRequired) return { emailConfirmationRequired: true };
     if (result.pendingProfileUserId) {
-      // session 即時作成（confirm email 無効時）: プロフィール設定フォームへ直接切り替える
       setPendingGoogleUserId(result.pendingProfileUserId);
     }
     return {};
