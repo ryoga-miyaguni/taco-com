@@ -425,6 +425,8 @@ export function AuthModal() {
 
   const handleBackdropPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (ignoreBackdropRef.current) return;
+    // プロフィール設定中は背景タップで閉じない（プロフィール完成必須）
+    if (isProfileSetup) return;
     if (e.target === e.currentTarget) closeAuthModal();
   };
 
@@ -436,10 +438,13 @@ export function AuthModal() {
       onPointerDown={handleBackdropPointerDown}
     >
       <div className="relative w-full max-w-sm paper card-stamp rounded-2xl border-[3px] border-ink shadow-[6px_6px_0_var(--ink)] overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
-        <button type="button" onClick={closeAuthModal} aria-label="閉じる"
-          className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-crema border-2 border-ink flex items-center justify-center hover:bg-naranja hover:text-crema transition-colors shadow-[2px_2px_0_var(--ink)]">
-          <X className="h-3.5 w-3.5" strokeWidth={3} />
-        </button>
+        {/* X ボタンはプロフィール設定中は非表示（途中離脱防止） */}
+        {!isProfileSetup && (
+          <button type="button" onClick={closeAuthModal} aria-label="閉じる"
+            className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-crema border-2 border-ink flex items-center justify-center hover:bg-naranja hover:text-crema transition-colors shadow-[2px_2px_0_var(--ink)]">
+            <X className="h-3.5 w-3.5" strokeWidth={3} />
+          </button>
+        )}
 
         {/* ヘッダー */}
         <div className="px-6 pt-6 pb-4 border-b-2 border-ink bg-naranja shrink-0">
@@ -586,6 +591,13 @@ export function AuthModal() {
                 className="mt-4 w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all disabled:opacity-60">
                 {isSubmitting ? "登録中…" : "登録して始める →"}
               </button>
+              {/* 脱出口: 別アカウントで登録しなおす */}
+              <p className="mt-3 text-center text-[11px] text-muted-foreground italic">
+                <button type="button" onClick={closeAuthModal} disabled={isSubmitting}
+                  className="text-naranja-deep underline hover:text-naranja transition-colors disabled:opacity-50">
+                  別のアカウントで登録しなおす
+                </button>
+              </p>
             </form>
           )}
 
