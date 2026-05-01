@@ -91,20 +91,10 @@ export async function fetchProfile(userId: string): Promise<User | null> {
 export async function register(
   input: RegisterInput,
 ): Promise<{ pendingProfileUserId?: string; error?: string }> {
-  console.log("[register] START", { email: input.email });
   const supabase = createClient();
-  console.log("[register] calling signUp…");
-  const t0 = performance.now();
   const { data, error } = await supabase.auth.signUp({
     email: input.email.trim(),
     password: input.password,
-  });
-  console.log(`[register] signUp returned in ${(performance.now() - t0).toFixed(0)}ms`, {
-    hasUser: !!data?.user,
-    hasSession: !!data?.session,
-    userId: data?.user?.id,
-    errorCode: error?.code,
-    errorMessage: error?.message,
   });
   if (error) {
     console.error("[register] signUp error:", error.code, error.message);
@@ -115,7 +105,6 @@ export async function register(
     // Confirm email が ON の場合 session が null になる
     return { error: "メール確認が有効になっています。Supabase ダッシュボードで Confirm email を OFF にしてください" };
   }
-  console.log("[register] DONE → pendingProfileUserId =", data.user.id);
   return { pendingProfileUserId: data.user.id };
 }
 
@@ -160,19 +149,10 @@ export async function login(
   email: string,
   password: string,
 ): Promise<{ user?: User; pendingProfileUserId?: string; error?: string }> {
-  console.log("[login] START", { email });
   const supabase = createClient();
-  console.log("[login] calling signInWithPassword…");
-  const t0 = performance.now();
   const { data, error } = await supabase.auth.signInWithPassword({
     email: email.trim(),
     password,
-  });
-  console.log(`[login] signInWithPassword returned in ${(performance.now() - t0).toFixed(0)}ms`, {
-    hasUser: !!data?.user,
-    hasSession: !!data?.session,
-    errorCode: error?.code,
-    errorMessage: error?.message,
   });
   if (error) {
     console.error("[login] signInWithPassword error:", error.code, error.message);
@@ -180,10 +160,7 @@ export async function login(
   }
   if (!data.user) return { error: "ログインに失敗しました" };
 
-  console.log("[login] fetching profile…");
-  const t1 = performance.now();
   const profile = await fetchProfile(data.user.id);
-  console.log(`[login] fetchProfile returned in ${(performance.now() - t1).toFixed(0)}ms`, { hasProfile: !!profile });
   if (!profile) {
     return { pendingProfileUserId: data.user.id };
   }
@@ -191,7 +168,6 @@ export async function login(
     await supabase.auth.signOut();
     return { error: "このアカウントは利用停止になっています" };
   }
-  console.log("[login] DONE → user =", profile.id);
   return { user: profile };
 }
 
@@ -224,7 +200,6 @@ export async function logout(): Promise<void> {
  * ユーザーがメール内のリンクをクリックすると /auth/reset に遷移する。
  */
 export async function sendPasswordResetEmail(email: string): Promise<{ error?: string }> {
-  console.log("[sendPasswordResetEmail] START", { email });
   const supabase = createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
     // /auth/callback で code → session 交換した後 /auth/reset に遷移する
@@ -234,7 +209,6 @@ export async function sendPasswordResetEmail(email: string): Promise<{ error?: s
     console.error("[sendPasswordResetEmail] error:", error.code, error.message);
     return { error: error.message };
   }
-  console.log("[sendPasswordResetEmail] DONE");
   return {};
 }
 
@@ -247,7 +221,6 @@ export async function changePassword(
   currentPassword: string,
   newPassword: string,
 ): Promise<{ error?: string }> {
-  console.log("[changePassword] START");
   if (newPassword.length < 8) return { error: "新しいパスワードは8文字以上にしてください" };
   if (currentPassword === newPassword) return { error: "現在と異なるパスワードを設定してください" };
 
@@ -258,7 +231,6 @@ export async function changePassword(
     password: currentPassword,
   });
   if (signInError) {
-    console.error("[changePassword] re-auth failed:", signInError.code, signInError.message);
     return { error: "現在のパスワードが正しくありません" };
   }
 
@@ -267,7 +239,6 @@ export async function changePassword(
     console.error("[changePassword] updateUser failed:", updateError.code, updateError.message);
     return { error: updateError.message };
   }
-  console.log("[changePassword] DONE");
   return {};
 }
 
@@ -277,7 +248,6 @@ export async function changePassword(
  * すでにセッションが確立している前提で updateUser のみ実行。
  */
 export async function confirmPasswordReset(newPassword: string): Promise<{ error?: string }> {
-  console.log("[confirmPasswordReset] START");
   if (newPassword.length < 8) return { error: "パスワードは8文字以上にしてください" };
 
   const supabase = createClient();
@@ -286,7 +256,6 @@ export async function confirmPasswordReset(newPassword: string): Promise<{ error
     console.error("[confirmPasswordReset] updateUser failed:", error.code, error.message);
     return { error: error.message };
   }
-  console.log("[confirmPasswordReset] DONE");
   return {};
 }
 

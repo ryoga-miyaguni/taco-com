@@ -104,11 +104,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // 非同期処理は setTimeout(..., 0) で次のマクロタスクに逃がす。
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log("[onAuthStateChange]", event, { hasSession: !!session?.user });
         setTimeout(async () => {
           if (session?.user) {
             const profile = await fetchProfile(session.user.id);
-            console.log("[onAuthStateChange] profile fetched", { hasProfile: !!profile });
             if (!profile) {
               setPendingGoogleUserId(session.user.id);
               setAuthModalOpen(true);
@@ -133,13 +131,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(async (input: RegisterInput): Promise<{ error?: string }> => {
-    console.log("[AuthProvider.register] START");
     try {
       const result = await authRegister(input);
-      console.log("[AuthProvider.register] authRegister returned", result);
       if (result.error) return { error: result.error };
       if (result.pendingProfileUserId) {
-        console.log("[AuthProvider.register] setPendingGoogleUserId →", result.pendingProfileUserId);
         setPendingGoogleUserId(result.pendingProfileUserId);
       }
       return {};
@@ -168,10 +163,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [pendingGoogleUserId]);
 
   const login = useCallback(async (email: string, password: string): Promise<{ error?: string }> => {
-    console.log("[AuthProvider.login] START");
     try {
       const result = await authLogin(email, password);
-      console.log("[AuthProvider.login] authLogin returned", { hasUser: !!result.user, hasPending: !!result.pendingProfileUserId, error: result.error });
       if (result.error) return { error: result.error };
       if (result.user) {
         const supabase = createClient();
