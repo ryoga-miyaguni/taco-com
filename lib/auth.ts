@@ -227,7 +227,8 @@ export async function sendPasswordResetEmail(email: string): Promise<{ error?: s
   console.log("[sendPasswordResetEmail] START", { email });
   const supabase = createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    redirectTo: `${window.location.origin}/auth/reset`,
+    // /auth/callback で code → session 交換した後 /auth/reset に遷移する
+    redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset`,
   });
   if (error) {
     console.error("[sendPasswordResetEmail] error:", error.code, error.message);
