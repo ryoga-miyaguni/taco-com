@@ -217,6 +217,78 @@ export async function logout(): Promise<void> {
   await supabase.auth.signOut();
 }
 
+// ─── パスワード変更 / リセット ────────────────────────────────────────────────
+
+/**
+ * パスワードリセットメールを送信。
+ * ユーザーがメール内のリンクをクリックすると /auth/reset に遷移する。
+ */
+export async function sendPasswordResetEmail(email: string): Promise<{ error?: string }> {
+  console.log("[sendPasswordResetEmail] START", { email });
+  const supabase = createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: `${window.location.origin}/auth/reset`,
+  });
+  if (error) {
+    console.error("[sendPasswordResetEmail] error:", error.code, error.message);
+    return { error: error.message };
+  }
+  console.log("[sendPasswordResetEmail] DONE");
+  return {};
+}
+
+/**
+ * 現在のパスワードで再認証してから新しいパスワードに更新。
+ * プロフィール画面の「パスワード変更」用。
+ */
+export async function changePassword(
+  email: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ error?: string }> {
+  console.log("[changePassword] START");
+  if (newPassword.length < 8) return { error: "新しいパスワードは8文字以上にしてください" };
+  if (currentPassword === newPassword) return { error: "現在と異なるパスワードを設定してください" };
+
+  const supabase = createClient();
+  // 再認証: 現在のパスワードが正しいか確認
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email: email.trim(),
+    password: currentPassword,
+  });
+  if (signInError) {
+    console.error("[changePassword] re-auth failed:", signInError.code, signInError.message);
+    return { error: "現在のパスワードが正しくありません" };
+  }
+
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+  if (updateError) {
+    console.error("[changePassword] updateUser failed:", updateError.code, updateError.message);
+    return { error: updateError.message };
+  }
+  console.log("[changePassword] DONE");
+  return {};
+}
+
+/**
+ * リセットリンク経由で新しいパスワードを設定。
+ * /auth/reset ページから呼ばれる。Supabase は exchangeCodeForSession を経て
+ * すでにセッションが確立している前提で updateUser のみ実行。
+ */
+export async function confirmPasswordReset(newPassword: string): Promise<{ error?: string }> {
+  console.log("[confirmPasswordReset] START");
+  if (newPassword.length < 8) return { error: "パスワードは8文字以上にしてください" };
+
+  const supabase = createClient();
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) {
+    console.error("[confirmPasswordReset] updateUser failed:", error.code, error.message);
+    return { error: error.message };
+  }
+  console.log("[confirmPasswordReset] DONE");
+  return {};
+}
+
 /** プロフィール更新 */
 export async function updateUser(
   userId: string,

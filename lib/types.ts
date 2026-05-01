@@ -116,6 +116,8 @@ export const OKINAWA_CITIES = [
 
 export type OkinawaCity = typeof OKINAWA_CITIES[number];
 
+export type AuthProvider = "email" | "google";
+
 export type User = {
   id: string;
   displayName: string;
@@ -123,6 +125,8 @@ export type User = {
   maxLikes: number;   // ハイウォーターマーク
   createdAt: string;
   isBanned?: boolean;
+  // 認証プロバイダ（auth.users.app_metadata.provider 由来。DB には保存しない）
+  authProvider?: AuthProvider;
   // プロフィール拡張（登録時に設定）
   birthYear?: number;
   residence?: Residence;

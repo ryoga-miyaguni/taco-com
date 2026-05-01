@@ -7,8 +7,10 @@ import {
   useEffect,
   useState,
 } from "react";
-import type { User } from "@/lib/types";
+import type { User, AuthProvider as AuthProviderType } from "@/lib/types";
+import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
+
 import {
   fetchProfile,
   login as authLogin,
@@ -17,9 +19,19 @@ import {
   register as authRegister,
   updateUser as authUpdateUser,
   createProfileForOAuthUser,
+  sendPasswordResetEmail as authSendPasswordResetEmail,
+  changePassword as authChangePassword,
   type RegisterInput,
   type ProfileSetupInput,
 } from "@/lib/auth";
+
+/** auth.users.app_metadata.provider から AuthProvider を判定 */
+function detectAuthProvider(session: Session | null): AuthProviderType | undefined {
+  const provider = session?.user?.app_metadata?.provider;
+  if (provider === "google") return "google";
+  if (provider === "email") return "email";
+  return undefined;
+}
 
 // ─── Context 型 ───────────────────────────────────────────────────────────────
 
@@ -38,6 +50,10 @@ type AuthContextValue = {
   logout: () => Promise<void>;
   /** プロフィール更新 */
   updateUser: (updates: Partial<Omit<User, "id" | "createdAt" | "maxLikes">>) => Promise<void>;
+  /** パスワードリセットメールを送信 */
+  sendPasswordResetEmail: (email: string) => Promise<{ error?: string }>;
+  /** ログイン中ユーザーがパスワード変更（再認証あり） */
+  changePassword: (currentPassword: string, newPassword: string) => Promise<{ error?: string }>;
   /** 書き込み前にログインが必要か確認し、未ログインなら authModal を開く */
   requireAuth: () => boolean;
   openAuthModal: () => void;
@@ -76,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else if (profile.isBanned) {
           await supabase.auth.signOut();
         } else {
-          setUser(profile);
+          setUser({ ...profile, authProvider: detectAuthProvider(session) });
         }
       }
       setIsLoading(false);
@@ -101,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               await supabase.auth.signOut();
               setUser(null);
             } else {
-              setUser(profile);
+              setUser({ ...profile, authProvider: detectAuthProvider(session) });
               setPendingGoogleUserId(null);
             }
           } else {
@@ -143,7 +159,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("[setupProfile] createProfileForOAuthUser failed:", result.error);
       return { error: result.error };
     }
-    setUser(result.user);
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    setUser({ ...result.user, authProvider: detectAuthProvider(session) });
     setPendingGoogleUserId(null);
     setAuthModalOpen(false);
     return {};
@@ -156,7 +174,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("[AuthProvider.login] authLogin returned", { hasUser: !!result.user, hasPending: !!result.pendingProfileUserId, error: result.error });
       if (result.error) return { error: result.error };
       if (result.user) {
-        setUser(result.user);
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        setUser({ ...result.user, authProvider: detectAuthProvider(session) });
         setAuthModalOpen(false);
       } else if (result.pendingProfileUserId) {
         setPendingGoogleUserId(result.pendingProfileUserId);
@@ -184,7 +204,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!user) return;
       await authUpdateUser(user.id, updates);
       const refreshed = await fetchProfile(user.id);
-      if (refreshed) setUser(refreshed);
+      if (refreshed) setUser({ ...refreshed, authProvider: user.authProvider });
+    },
+    [user],
+  );
+
+  const sendPasswordResetEmail = useCallback(
+    async (email: string): Promise<{ error?: string }> => authSendPasswordResetEmail(email),
+    [],
+  );
+
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string): Promise<{ error?: string }> => {
+      if (!user) return { error: "ログインしていません" };
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const email = session?.user?.email;
+      if (!email) return { error: "メールアドレスが取得できません" };
+      return authChangePassword(email, currentPassword, newPassword);
     },
     [user],
   );
@@ -217,6 +254,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         loginWithGoogle,
         logout,
         updateUser,
+        sendPasswordResetEmail,
+        changePassword,
         requireAuth,
         openAuthModal,
         closeAuthModal,
