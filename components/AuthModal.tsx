@@ -24,7 +24,7 @@ import {
 } from "@/lib/types";
 import { useAuth } from "./AuthProvider";
 
-type Tab = "login" | "register";
+type Tab = "login" | "register" | "forgot";
 
 const AVATAR_KEYS = Object.keys(AVATAR_EMOJI) as AvatarKey[];
 const CURRENT_YEAR = new Date().getFullYear();
@@ -289,12 +289,13 @@ function ProfileForm({
 // ─── メインコンポーネント ────────────────────────────────────────────────────
 
 export function AuthModal() {
-  const { authModalOpen, closeAuthModal, login, register, loginWithGoogle, setupProfile, pendingGoogleUserId } = useAuth();
+  const { authModalOpen, closeAuthModal, login, register, loginWithGoogle, setupProfile, pendingGoogleUserId, sendPasswordResetEmail } = useAuth();
   const [tab, setTab] = useState<Tab>("login");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
   // プロフィールフォーム用
   const [displayName, setDisplayName] = useState("");
@@ -421,6 +422,24 @@ export function AuthModal() {
     setError(null);
     setEmail("");
     setPassword("");
+    setResetSent(false);
+  };
+
+  const handleForgotSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!email.trim()) { setError("メールアドレスを入力してください"); return; }
+    setIsSubmitting(true);
+    try {
+      const result = await sendPasswordResetEmail(email.trim());
+      if (result.error) setError(result.error);
+      else setResetSent(true);
+    } catch (e) {
+      console.error("[AuthModal.handleForgotSubmit] EXCEPTION:", e);
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleBackdropPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -449,20 +468,26 @@ export function AuthModal() {
         {/* ヘッダー */}
         <div className="px-6 pt-6 pb-4 border-b-2 border-ink bg-naranja shrink-0">
           <p className="font-serif-it text-[10px] tracking-[0.22em] uppercase text-crema/70">
-            {isProfileSetup ? "Crear Perfil" : tab === "login" ? "Bienvenido" : "Crear Cuenta"}
+            {isProfileSetup ? "Crear Perfil"
+              : tab === "forgot" ? "Recuperar Contraseña"
+              : tab === "login" ? "Bienvenido"
+              : "Crear Cuenta"}
           </p>
           <h2 className="font-display text-crema text-[22px] leading-tight">
-            {isProfileSetup ? "プロフィール設定" : tab === "login" ? "ログイン" : "アカウント作成"}
+            {isProfileSetup ? "プロフィール設定"
+              : tab === "forgot" ? "パスワードを再設定"
+              : tab === "login" ? "ログイン"
+              : "アカウント作成"}
           </h2>
           {isProfileSetup && (
             <p className="font-serif-it text-[10px] text-crema/60 mt-0.5">あなたの好みを教えてください（後から変更できます）</p>
           )}
         </div>
 
-        {/* タブ（プロフィール設定時は非表示） */}
-        {!isProfileSetup && (
+        {/* タブ（プロフィール設定 / パスワードリセット時は非表示） */}
+        {!isProfileSetup && tab !== "forgot" && (
           <div className="flex border-b-2 border-ink shrink-0">
-            {(["login", "register"] as Tab[]).map((t) => (
+            {(["login", "register"] as const).map((t) => (
               <button key={t} type="button" onClick={() => switchTab(t)}
                 className={`flex-1 py-2.5 text-[13px] font-display transition-colors ${
                   tab === t ? "bg-crema text-ink" : "bg-masa-lo text-ink/50 hover:bg-masa-hi"
@@ -491,6 +516,12 @@ export function AuthModal() {
                   className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja" />
               </div>
               {error && <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">{error}</p>}
+              <div className="text-right -mt-2">
+                <button type="button" onClick={() => switchTab("forgot")}
+                  className="text-[11px] text-naranja-deep underline hover:text-naranja font-serif-it italic">
+                  パスワードをお忘れの方
+                </button>
+              </div>
               <button type="submit" disabled={isSubmitting}
                 className="w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all disabled:opacity-60">
                 {isSubmitting ? "ログイン中…" : "ログイン →"}
@@ -558,6 +589,49 @@ export function AuthModal() {
                 すでにアカウントがある方は{" "}
                 <button type="button" onClick={() => switchTab("login")} className="text-naranja-deep underline">ログイン</button>
               </p>
+            </form>
+          )}
+
+          {/* ─── パスワードリセットメール送信 ─── */}
+          {!isProfileSetup && tab === "forgot" && (
+            <form onSubmit={handleForgotSubmit} className="px-6 py-5 space-y-4 bg-crema">
+              {resetSent ? (
+                <div className="space-y-4 text-center py-4">
+                  <div className="text-3xl">📩</div>
+                  <p className="font-display text-[15px] text-ink">メールを送信しました</p>
+                  <p className="text-[12px] text-muted-foreground leading-relaxed font-serif-it italic">
+                    {email} 宛にパスワード再設定のリンクを送りました。<br />
+                    メール内のリンクをクリックして新しいパスワードを設定してください。
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    メールが届かない場合は迷惑メールフォルダもご確認ください。
+                  </p>
+                  <button type="button" onClick={() => switchTab("login")}
+                    className="w-full mt-2 font-display text-[13px] h-11 rounded-full bg-crema text-ink border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:bg-masa-hi transition-colors">
+                    ログイン画面に戻る
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[12px] text-muted-foreground leading-relaxed">
+                    登録時のメールアドレスを入力してください。パスワード再設定のリンクをお送りします。
+                  </p>
+                  <div>
+                    <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">メールアドレス</label>
+                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                      placeholder="例: taco@example.com" autoFocus
+                      className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja" />
+                  </div>
+                  {error && <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">{error}</p>}
+                  <button type="submit" disabled={isSubmitting}
+                    className="w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all disabled:opacity-60">
+                    {isSubmitting ? "送信中…" : "再設定メールを送る →"}
+                  </button>
+                  <p className="text-center text-[11px] text-muted-foreground font-serif-it italic">
+                    <button type="button" onClick={() => switchTab("login")} className="text-naranja-deep underline">ログイン画面に戻る</button>
+                  </p>
+                </>
+              )}
             </form>
           )}
 
