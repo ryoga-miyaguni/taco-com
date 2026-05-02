@@ -498,12 +498,14 @@ export function AuthModal() {
                 <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">メールアドレス</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                   placeholder="例: taco@example.com" autoFocus
+                  autoComplete="email"
                   className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja" />
               </div>
               <div>
                 <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">パスワード</label>
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  autoComplete="current-password"
                   className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja" />
               </div>
               {error && <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">{error}</p>}
@@ -546,6 +548,7 @@ export function AuthModal() {
                 <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">メールアドレス</label>
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                   placeholder="例: taco@example.com" autoFocus
+                  autoComplete="email"
                   className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja" />
               </div>
               <div>
@@ -554,6 +557,7 @@ export function AuthModal() {
                 </label>
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  autoComplete="new-password"
                   className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja" />
               </div>
               {error && <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">{error}</p>}
@@ -611,6 +615,7 @@ export function AuthModal() {
                     <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">メールアドレス</label>
                     <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                       placeholder="例: taco@example.com" autoFocus
+                      autoComplete="email"
                       className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja" />
                   </div>
                   {error && <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">{error}</p>}

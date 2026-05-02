@@ -203,8 +203,14 @@ export async function sendPasswordResetEmail(email: string): Promise<{ error?: s
   const supabase = createClient();
   // メール内リンクの URL は Supabase の Email Template 側で
   // `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/reset`
-  // の形式に設定している。redirectTo は token_hash フローでは使われない。
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+  // の形式に設定している。
+  //
+  // redirectTo は本来 token_hash フローでは使われないが、
+  // テンプレートが旧形式 ({{ .ConfirmationURL }}) に戻されてしまった場合の
+  // フォールバックとして指定しておく。/auth/callback は code 交換に対応している。
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+    redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset`,
+  });
   if (error) {
     console.error("[sendPasswordResetEmail] error:", error.code, error.message);
     return { error: error.message };
