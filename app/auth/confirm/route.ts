@@ -52,5 +52,17 @@ export async function GET(request: Request) {
     return NextResponse.redirect(errUrl);
   }
 
+  // recovery タイプの場合、/auth/reset 側で「リカバリ経由のアクセス」を
+  // 識別できるよう短命の cookie をセットする（既ログインユーザーが直接
+  // /auth/reset を開いた時と区別する）
+  if (type === "recovery") {
+    response.cookies.set("password_recovery_intent", "1", {
+      maxAge: 600, // 10 分
+      path: "/",
+      sameSite: "lax",
+      // httpOnly: false — クライアント側で読み取って消費する
+    });
+  }
+
   return response;
 }

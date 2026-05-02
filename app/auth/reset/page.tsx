@@ -6,9 +6,11 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { confirmPasswordReset } from "@/lib/auth";
 
+type Status = "loading" | "ok" | "no_session" | "wrong_entry";
+
 export default function ResetPasswordPage() {
   const router = useRouter();
-  const [hasSession, setHasSession] = useState<boolean | null>(null);
+  const [status, setStatus] = useState<Status>("loading");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +20,21 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setHasSession(!!session?.user);
+      if (!session?.user) {
+        setStatus("no_session");
+        return;
+      }
+      // /auth/confirm が type=recovery でセットしたフラグ cookie を確認
+      const hasRecoveryIntent = document.cookie.split(";").some((c) =>
+        c.trim().startsWith("password_recovery_intent="),
+      );
+      if (!hasRecoveryIntent) {
+        setStatus("wrong_entry");
+        return;
+      }
+      // 1 回限りなので消費する
+      document.cookie = "password_recovery_intent=; max-age=0; path=/";
+      setStatus("ok");
     });
   }, []);
 
@@ -38,7 +54,7 @@ export default function ResetPasswordPage() {
   };
 
   // セッション確認中
-  if (hasSession === null) {
+  if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-masa paper-lite p-4">
         <p className="font-display text-[14px] text-ink/60">確認中…</p>
@@ -47,7 +63,7 @@ export default function ResetPasswordPage() {
   }
 
   // リンクが期限切れ・無効
-  if (!hasSession) {
+  if (status === "no_session") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-masa paper-lite p-4">
         <div className="w-full max-w-sm paper card-stamp rounded-2xl border-[3px] border-ink shadow-[6px_6px_0_var(--ink)] overflow-hidden">
@@ -63,6 +79,31 @@ export default function ResetPasswordPage() {
             <Link href="/"
               className="block text-center w-full font-display text-[14px] h-11 leading-[44px] rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all">
               トップに戻る →
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 既ログイン中だがリカバリ経由ではない（誰かが直接 URL を開いた等）
+  if (status === "wrong_entry") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-masa paper-lite p-4">
+        <div className="w-full max-w-sm paper card-stamp rounded-2xl border-[3px] border-ink shadow-[6px_6px_0_var(--ink)] overflow-hidden">
+          <div className="px-6 pt-6 pb-4 border-b-2 border-ink bg-naranja">
+            <p className="font-serif-it text-[10px] tracking-[0.22em] uppercase text-crema/70">Acceso incorrecto</p>
+            <h1 className="font-display text-crema text-[22px] leading-tight">アクセス方法が違います</h1>
+          </div>
+          <div className="px-6 py-6 bg-crema space-y-4">
+            <p className="text-[13px] text-ink leading-relaxed">
+              このページはパスワード再設定メール経由でのみご利用いただけます。<br />
+              <br />
+              パスワード変更は<strong>プロフィール画面 → アカウント設定 → 「パスワードを変更」</strong>から行えます。
+            </p>
+            <Link href="/profile"
+              className="block text-center w-full font-display text-[14px] h-11 leading-[44px] rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all">
+              プロフィールへ →
             </Link>
           </div>
         </div>
