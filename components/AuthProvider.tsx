@@ -59,8 +59,8 @@ type AuthContextValue = {
   openAuthModal: () => void;
   closeAuthModal: () => void;
   authModalOpen: boolean;
-  /** Google OAuth 後にプロフィール未設定のユーザー ID（null = 通常状態） */
-  pendingGoogleUserId: string | null;
+  /** プロフィール未設定のユーザー ID（Email 登録直後 or Google OAuth 後）。null = 通常状態 */
+  pendingProfileUserId: string | null;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [pendingGoogleUserId, setPendingGoogleUserId] = useState<string | null>(null);
+  const [pendingProfileUserId, setPendingProfileUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (session?.user) {
         const profile = await fetchProfile(session.user.id);
         if (!profile) {
-          setPendingGoogleUserId(session.user.id);
+          setPendingProfileUserId(session.user.id);
           setAuthModalOpen(true);
         } else if (profile.isBanned) {
           await supabase.auth.signOut();
@@ -108,7 +108,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (session?.user) {
             const profile = await fetchProfile(session.user.id);
             if (!profile) {
-              setPendingGoogleUserId(session.user.id);
+              setPendingProfileUserId(session.user.id);
               setAuthModalOpen(true);
               setUser(null);
             } else if (profile.isBanned) {
@@ -116,11 +116,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setUser(null);
             } else {
               setUser({ ...profile, authProvider: detectAuthProvider(session) });
-              setPendingGoogleUserId(null);
+              setPendingProfileUserId(null);
             }
           } else {
             setUser(null);
-            setPendingGoogleUserId(null);
+            setPendingProfileUserId(null);
           }
           if (event !== "INITIAL_SESSION") setIsLoading(false);
         }, 0);
@@ -135,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await authRegister(input);
       if (result.error) return { error: result.error };
       if (result.pendingProfileUserId) {
-        setPendingGoogleUserId(result.pendingProfileUserId);
+        setPendingProfileUserId(result.pendingProfileUserId);
       }
       return {};
     } catch (e) {
@@ -145,11 +145,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setupProfile = useCallback(async (input: ProfileSetupInput): Promise<{ error?: string }> => {
-    if (!pendingGoogleUserId) {
-      console.error("[setupProfile] pendingGoogleUserId is null — session lost");
+    if (!pendingProfileUserId) {
+      console.error("[setupProfile] pendingProfileUserId is null — session lost");
       return { error: "セッションが見つかりません" };
     }
-    const result = await createProfileForOAuthUser(pendingGoogleUserId, input);
+    const result = await createProfileForOAuthUser(pendingProfileUserId, input);
     if ("error" in result) {
       console.error("[setupProfile] createProfileForOAuthUser failed:", result.error);
       return { error: result.error };
@@ -157,10 +157,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const supabase = createClient();
     const { data: { session } } = await supabase.auth.getSession();
     setUser({ ...result.user, authProvider: detectAuthProvider(session) });
-    setPendingGoogleUserId(null);
+    setPendingProfileUserId(null);
     setAuthModalOpen(false);
     return {};
-  }, [pendingGoogleUserId]);
+  }, [pendingProfileUserId]);
 
   const login = useCallback(async (email: string, password: string): Promise<{ error?: string }> => {
     try {
@@ -172,7 +172,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser({ ...result.user, authProvider: detectAuthProvider(session) });
         setAuthModalOpen(false);
       } else if (result.pendingProfileUserId) {
-        setPendingGoogleUserId(result.pendingProfileUserId);
+        setPendingProfileUserId(result.pendingProfileUserId);
       }
       return {};
     } catch (e) {
@@ -222,13 +222,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const openAuthModal = useCallback(() => setAuthModalOpen(true), []);
   const closeAuthModal = useCallback(() => {
     setAuthModalOpen(false);
-    // Google ユーザーがプロフィール設定をキャンセルした場合はサインアウト
-    if (pendingGoogleUserId) {
+    // プロフィール設定中のユーザーがキャンセルした場合はサインアウト
+    if (pendingProfileUserId) {
       const supabase = createClient();
       void supabase.auth.signOut();
-      setPendingGoogleUserId(null);
+      setPendingProfileUserId(null);
     }
-  }, [pendingGoogleUserId]);
+  }, [pendingProfileUserId]);
 
   const requireAuth = useCallback((): boolean => {
     if (user) return true;
@@ -253,7 +253,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         openAuthModal,
         closeAuthModal,
         authModalOpen,
-        pendingGoogleUserId,
+        pendingProfileUserId,
       }}
     >
       {children}

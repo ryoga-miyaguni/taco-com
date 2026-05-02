@@ -289,7 +289,7 @@ function ProfileForm({
 // ─── メインコンポーネント ────────────────────────────────────────────────────
 
 export function AuthModal() {
-  const { authModalOpen, closeAuthModal, login, register, loginWithGoogle, setupProfile, pendingGoogleUserId, sendPasswordResetEmail } = useAuth();
+  const { authModalOpen, closeAuthModal, login, register, loginWithGoogle, setupProfile, pendingProfileUserId, sendPasswordResetEmail } = useAuth();
   const [tab, setTab] = useState<Tab>("login");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [email, setEmail] = useState("");
@@ -318,7 +318,7 @@ export function AuthModal() {
     return () => cancelAnimationFrame(id);
   }, [authModalOpen]);
 
-  const isProfileSetup = !!pendingGoogleUserId;
+  const isProfileSetup = !!pendingProfileUserId;
 
   // プロフィール設定フォームに切り替わった瞬間にスピナーをリセット
   useEffect(() => {
