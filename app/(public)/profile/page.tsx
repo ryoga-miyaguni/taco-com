@@ -97,7 +97,7 @@ function ProfileTag({ children }: { children: React.ReactNode }) {
 // ─── メインページ ────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
-  const { user, logout, updateUser, changePassword, isLoading } = useAuth();
+  const { user, logout, updateUser, changePassword, deleteAccount, isLoading } = useAuth();
   const router = useRouter();
 
   const [myComments, setMyComments] = useState<Comment[]>([]);
@@ -131,6 +131,13 @@ export default function ProfilePage() {
   const [pwError, setPwError] = useState<string | null>(null);
   const [pwSuccess, setPwSuccess] = useState(false);
   const [pwSubmitting, setPwSubmitting] = useState(false);
+
+  // アカウント削除フォーム
+  const [delOpen, setDelOpen] = useState(false);
+  const [delPassword, setDelPassword] = useState("");
+  const [delConfirm, setDelConfirm] = useState("");
+  const [delError, setDelError] = useState<string | null>(null);
+  const [delSubmitting, setDelSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -826,6 +833,96 @@ export default function ProfilePage() {
           >
             ログアウト
           </button>
+
+          {/* アカウント削除（折りたたみ） */}
+          <div className="border-2 border-salsa/40 rounded-2xl bg-salsa/5 overflow-hidden mt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setDelOpen((v) => !v);
+                setDelError(null);
+                setDelPassword("");
+                setDelConfirm("");
+              }}
+              className="w-full px-4 py-3 flex items-center justify-between font-display text-[13px] text-salsa hover:bg-salsa/10 transition-colors"
+            >
+              <span>⚠️ アカウントを削除</span>
+              <span className="text-[11px] text-salsa/60">{delOpen ? "閉じる" : "開く"}</span>
+            </button>
+            {delOpen && (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setDelError(null);
+                  if (user.authProvider === "email") {
+                    if (!delPassword) { setDelError("パスワードを入力してください"); return; }
+                  }
+                  if (delConfirm !== "DELETE") {
+                    setDelError("「DELETE」と入力してください（半角大文字）");
+                    return;
+                  }
+                  if (!window.confirm("本当にアカウントを削除しますか？\nこの操作は取り消せません。")) return;
+                  setDelSubmitting(true);
+                  try {
+                    const result = await deleteAccount({
+                      password: user.authProvider === "email" ? delPassword : undefined,
+                      confirm: "DELETE",
+                    });
+                    if (result.error) {
+                      setDelError(result.error);
+                    } else {
+                      router.replace("/");
+                    }
+                  } finally {
+                    setDelSubmitting(false);
+                  }
+                }}
+                className="px-4 pb-4 pt-1 space-y-3 border-t-2 border-dashed border-salsa/30"
+              >
+                <p className="text-[12px] text-ink leading-relaxed">
+                  アカウントを削除すると、プロフィール・コメント・お気に入り・スタンプ・通報・店舗リクエストなど、あなたに紐づく全データが完全に削除されます。<strong className="text-salsa">この操作は取り消せません。</strong>
+                </p>
+                {user.authProvider === "email" && (
+                  <div>
+                    <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-salsa block mb-1.5">
+                      現在のパスワード
+                    </label>
+                    <input
+                      type="password"
+                      value={delPassword}
+                      onChange={(e) => setDelPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      className="w-full bg-white border-2 border-salsa rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-salsa"
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-salsa block mb-1.5">
+                    確認のため <code className="font-mono bg-salsa/10 px-1 rounded">DELETE</code> と入力
+                  </label>
+                  <input
+                    type="text"
+                    value={delConfirm}
+                    onChange={(e) => setDelConfirm(e.target.value)}
+                    placeholder="DELETE"
+                    autoComplete="off"
+                    className="w-full bg-white border-2 border-salsa rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-salsa font-mono"
+                  />
+                </div>
+                {delError && (
+                  <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">{delError}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={delSubmitting}
+                  className="w-full font-display text-[13px] h-10 rounded-full bg-salsa text-crema border-2 border-salsa shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] transition-all disabled:opacity-60"
+                >
+                  {delSubmitting ? "削除中…" : "アカウントを完全に削除する"}
+                </button>
+              </form>
+            )}
+          </div>
         </section>
       </main>
     </div>

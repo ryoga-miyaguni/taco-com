@@ -54,6 +54,11 @@ type AuthContextValue = {
   sendPasswordResetEmail: (email: string) => Promise<{ error?: string }>;
   /** ログイン中ユーザーがパスワード変更（再認証あり） */
   changePassword: (currentPassword: string, newPassword: string) => Promise<{ error?: string }>;
+  /**
+   * アカウントを完全削除（プロフィール・関連データ・auth.users 行を全削除）。
+   * email ユーザーは password を、Google ユーザーは confirm="DELETE" を指定する。
+   */
+  deleteAccount: (input: { password?: string; confirm?: string }) => Promise<{ error?: string }>;
   /** 書き込み前にログインが必要か確認し、未ログインなら authModal を開く */
   requireAuth: () => boolean;
   openAuthModal: () => void;
@@ -219,6 +224,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [user],
   );
 
+  const deleteAccount = useCallback(
+    async (input: { password?: string; confirm?: string }): Promise<{ error?: string }> => {
+      try {
+        const res = await fetch("/api/account/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(input),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          return { error: data?.error ?? "アカウント削除に失敗しました" };
+        }
+        // ローカル状態をクリア
+        setUser(null);
+        setPendingProfileUserId(null);
+        setAuthModalOpen(false);
+        return {};
+      } catch (e) {
+        console.error("[deleteAccount] EXCEPTION:", e);
+        return { error: e instanceof Error ? e.message : String(e) };
+      }
+    },
+    [],
+  );
+
   const openAuthModal = useCallback(() => setAuthModalOpen(true), []);
   const closeAuthModal = useCallback(() => {
     setAuthModalOpen(false);
@@ -249,6 +279,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updateUser,
         sendPasswordResetEmail,
         changePassword,
+        deleteAccount,
         requireAuth,
         openAuthModal,
         closeAuthModal,
