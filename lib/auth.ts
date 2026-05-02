@@ -201,10 +201,10 @@ export async function logout(): Promise<void> {
  */
 export async function sendPasswordResetEmail(email: string): Promise<{ error?: string }> {
   const supabase = createClient();
-  const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-    // /auth/callback で code → session 交換した後 /auth/reset に遷移する
-    redirectTo: `${window.location.origin}/auth/callback?next=/auth/reset`,
-  });
+  // メール内リンクの URL は Supabase の Email Template 側で
+  // `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/auth/reset`
+  // の形式に設定している。redirectTo は token_hash フローでは使われない。
+  const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
   if (error) {
     console.error("[sendPasswordResetEmail] error:", error.code, error.message);
     return { error: error.message };
