@@ -40,13 +40,13 @@ export async function toggleLike(commentId: string, userId: string): Promise<boo
   await updateLikeCount(commentId, +1);
 
   if (target) {
-    const { count } = await supabase
-      .from("likes")
-      .select("*", { count: "exact", head: true })
-      .in("comment_id",
-        allComments.filter((c) => c.userId === target.userId).map((c) => c.id)
-      );
-    void updateMaxLikes(target.userId, count ?? 0);
+    // RLS で likes の SELECT は本人のみに制限されているため、
+    // 集計には comments.like_count（全体集計値）を直接合算する。
+    const refreshed = await loadAllComments();
+    const userTotal = refreshed
+      .filter((c) => c.userId === target.userId)
+      .reduce((sum, c) => sum + c.likeCount, 0);
+    void updateMaxLikes(target.userId, userTotal);
   }
 
   return true;
