@@ -4,14 +4,17 @@ import { STAMP_KEYS } from "./types";
 
 export async function getStampCounts(shopId: string): Promise<Record<StampKey, number>> {
   const supabase = createClient();
-  const { data } = await supabase
-    .from("shop_stamps")
-    .select("stamp_key")
-    .eq("shop_id", shopId);
+  // RLS で shop_stamps の SELECT は本人のみに制限されているため、
+  // 集計は SECURITY DEFINER の RPC 関数 get_stamp_counts で行う。
+  const { data, error } = await supabase.rpc("get_stamp_counts", { p_shop_id: shopId });
   const counts = Object.fromEntries(STAMP_KEYS.map((k) => [k, 0])) as Record<StampKey, number>;
-  for (const row of data ?? []) {
-    const key = (row as { stamp_key: string }).stamp_key as StampKey;
-    if (key in counts) counts[key]++;
+  if (error) {
+    console.error("[getStampCounts] rpc error:", error.code, error.message);
+    return counts;
+  }
+  for (const row of (data ?? []) as { stamp_key: string; count: number | string }[]) {
+    const key = row.stamp_key as StampKey;
+    if (key in counts) counts[key] = Number(row.count);
   }
   return counts;
 }
