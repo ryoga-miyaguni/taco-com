@@ -12,7 +12,7 @@ export default function HomePage() {
   const [shops, setShops] = useState<Shop[]>(demoData.shops as Shop[]);
 
   useEffect(() => {
-    setShops(getShops());
+    void getShops().then(setShops);
   }, []);
 
   return <MapView shops={shops} />;

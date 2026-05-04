@@ -14,8 +14,6 @@ import {
 } from "@/lib/comments";
 import { useAuth } from "./AuthProvider";
 import { getLikedCommentIds, toggleLike } from "@/lib/likes";
-import { getBadge } from "@/lib/badges";
-import { getUserById } from "@/lib/auth";
 import { hasReported, reportComment } from "@/lib/reports";
 
 const MAX_BODY = 200;
@@ -28,26 +26,33 @@ export function CommentSection({ shopId }: { shopId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [existingComment, setExistingComment] = useState<Comment | null>(null);
 
-  const reloadLikes = () =>
-    setLikedIds(user ? getLikedCommentIds(user.id) : new Set());
+  const reloadLikes = async () => {
+    if (user) {
+      const ids = await getLikedCommentIds(user.id);
+      setLikedIds(ids);
+    } else {
+      setLikedIds(new Set());
+    }
+  };
 
-  const reload = () => {
-    const loaded = loadCommentsForShop(shopId);
+  const reload = async () => {
+    const [loaded, existing] = await Promise.all([
+      loadCommentsForShop(shopId),
+      user ? findExistingComment(shopId, user.id) : Promise.resolve(null),
+    ]);
     setComments(loaded);
-    reloadLikes();
-    setExistingComment(
-      user ? (findExistingComment(shopId, user.id) ?? null) : null
-    );
+    setExistingComment(existing);
+    await reloadLikes();
   };
 
   useEffect(() => {
-    reload();
+    void reload();
     setBody("");
     setError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId, user]);
 
-  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!requireAuth()) return;
 
@@ -55,7 +60,7 @@ export function CommentSection({ shopId }: { shopId: string }) {
     if (trimmed.length > MAX_BODY) { setError(`${MAX_BODY}文字以内で入力してください`); return; }
 
     try {
-      addComment({
+      await addComment({
         shopId,
         userId: user!.id,
         nickname: user!.displayName,
@@ -64,7 +69,7 @@ export function CommentSection({ shopId }: { shopId: string }) {
       });
       setBody("");
       setError(null);
-      reload();
+      void reload();
     } catch (err) {
       if (err instanceof Error && err.message === "DUPLICATE_COMMENT") {
         setError("この店舗にはすでに口コミを投稿しています");
@@ -174,22 +179,24 @@ function CommentCard({
   const { user, requireAuth } = useAuth();
   const isOwner = !!user && user.id === c.userId;
 
-  const author = getUserById(c.userId);
-  const badge = author ? getBadge(author.maxLikes) : null;
 
-  const handleLike = () => {
+  const handleLike = async () => {
     if (!requireAuth()) return;
-    toggleLike(c.id, user!.id);
+    await toggleLike(c.id, user!.id);
     onChanged();
   };
 
-  const [reported, setReported] = useState(
-    () => !!user && hasReported(c.id, user.id),
-  );
+  const [reported, setReported] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
 
-  const handleReportSubmit = (reason: ReportReason) => {
-    reportComment(c.id, user!.id, reason);
+  useEffect(() => {
+    if (user) void hasReported(c.id, user.id).then(setReported);
+    else setReported(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.id, user]);
+
+  const handleReportSubmit = async (reason: ReportReason) => {
+    await reportComment(c.id, user!.id, reason);
     setReported(true);
     setReportModalOpen(false);
     onChanged();
@@ -200,30 +207,38 @@ function CommentCard({
   const [replyOpen, setReplyOpen] = useState(false);
   const [replies, setReplies] = useState<Comment[]>([]);
   const [showReplies, setShowReplies] = useState(false);
+  const [replyCount, setReplyCount] = useState(0);
 
-  const reloadReplies = () => setReplies(loadReplies(c.id));
+  const reloadReplies = async () => {
+    const loaded = await loadReplies(c.id);
+    setReplies(loaded);
+    setReplyCount(loaded.length);
+  };
 
   useEffect(() => {
-    if (showReplies) reloadReplies();
+    void loadReplies(c.id).then((r) => setReplyCount(r.length));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.id]);
+
+  useEffect(() => {
+    if (showReplies) void reloadReplies();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showReplies, c.id]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!user) return;
     if (!window.confirm("このコメントを削除しますか？")) return;
-    deleteComment(c.id, user.id);
+    await deleteComment(c.id, user.id);
     onChanged();
   };
 
-  const handleEditSave = () => {
+  const handleEditSave = async () => {
     if (!user) return;
     const trimmed = editBody.trim();
-    editComment(c.id, user.id, trimmed);
+    await editComment(c.id, user.id, trimmed);
     setEditing(false);
     onChanged();
   };
-
-  const replyCount = loadReplies(c.id).length;
 
   return (
     <li
@@ -236,11 +251,6 @@ function CommentCard({
           {AVATAR_EMOJI[c.avatarKey]}
         </span>
         <span className="font-display text-[14px] text-ink truncate">{c.nickname}</span>
-        {badge && (
-          <span title={`${badge.label} — ${badge.description}`} className="text-base leading-none shrink-0">
-            {badge.emoji}
-          </span>
-        )}
         {c.isEdited && (
           <span className="ml-auto shrink-0 text-[10px] font-mono text-ink/40 border border-ink/20 rounded px-1.5 py-0.5">
             編集済み
@@ -420,13 +430,13 @@ function ReplyForm({
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) return;
     const trimmed = body.trim();
     if (!trimmed) { setError("返信を入力してください"); return; }
     if (trimmed.length > MAX_BODY) { setError(`${MAX_BODY}文字以内`); return; }
-    addReply({ shopId, parentId, userId: user.id, nickname: user.displayName, avatarKey: user.avatarKey, body: trimmed });
+    await addReply({ shopId, parentId, userId: user.id, nickname: user.displayName, avatarKey: user.avatarKey, body: trimmed });
     setBody("");
     setError(null);
     onSubmitted();
@@ -465,17 +475,17 @@ function ReplyCard({ reply: r, onChanged }: { reply: Comment; onChanged: () => v
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState(r.body);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!user) return;
-    deleteComment(r.id, user.id);
+    await deleteComment(r.id, user.id);
     onChanged();
   };
 
-  const handleEditSave = () => {
+  const handleEditSave = async () => {
     if (!user) return;
     const trimmed = editBody.trim();
     if (!trimmed) return;
-    editComment(r.id, user.id, trimmed);
+    await editComment(r.id, user.id, trimmed);
     setEditing(false);
     onChanged();
   };

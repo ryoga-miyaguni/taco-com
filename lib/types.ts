@@ -107,7 +107,7 @@ export const OKINAWA_CITIES = [
   "南城市", "国頭村", "大宜味村", "東村", "今帰仁村",
   "本部町", "恩納村", "宜野座村", "金武町", "伊江村",
   "読谷村", "嘉手納町", "北谷町", "北中城村", "中城村",
-  "西原町", "与那原町", "南風原町", "豊見城市", "八重瀬町",
+  "西原町", "与那原町", "南風原町", "八重瀬町",
   "南大東村", "北大東村", "伊平屋村", "伊是名村", "久米島町",
   "渡嘉敷村", "座間味村", "粟国村", "渡名喜村", "多良間村",
   "竹富町", "与那国町",
@@ -116,6 +116,8 @@ export const OKINAWA_CITIES = [
 
 export type OkinawaCity = typeof OKINAWA_CITIES[number];
 
+export type AuthProvider = "email" | "google";
+
 export type User = {
   id: string;
   displayName: string;
@@ -123,6 +125,8 @@ export type User = {
   maxLikes: number;   // ハイウォーターマーク
   createdAt: string;
   isBanned?: boolean;
+  // 認証プロバイダ（auth.users.app_metadata.provider 由来。DB には保存しない）
+  authProvider?: AuthProvider;
   // プロフィール拡張（登録時に設定）
   birthYear?: number;
   residence?: Residence;

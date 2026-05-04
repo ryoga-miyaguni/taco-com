@@ -1,33 +1,24 @@
+import { createClient } from "@/lib/supabase/client";
 import type { ShopRequest, ShopType } from "./types";
 
-const REQUESTS_KEY = "taco-com:requests:v1";
-
-function isBrowser(): boolean {
-  return typeof window !== "undefined";
+function mapRequest(r: Record<string, unknown>): ShopRequest {
+  return {
+    id: r.id as string,
+    name: r.name as string,
+    latitude: r.latitude as number,
+    longitude: r.longitude as number,
+    address: (r.address as string) ?? "",
+    type: r.type as ShopType,
+    note: (r.note as string) ?? "",
+    mapUrl: (r.map_url as string) ?? undefined,
+    submittedByUserId: (r.submitted_by_user_id as string) ?? "",
+    submittedByName: (r.submitted_by_name as string) ?? "",
+    status: r.status as ShopRequest["status"],
+    createdAt: r.created_at as string,
+  };
 }
 
-function loadAll(): ShopRequest[] {
-  if (!isBrowser()) return [];
-  const raw = localStorage.getItem(REQUESTS_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as ShopRequest[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveAll(requests: ShopRequest[]): void {
-  if (!isBrowser()) return;
-  localStorage.setItem(REQUESTS_KEY, JSON.stringify(requests));
-}
-
-// ─── 公開 API ────────────────────────────────────────────────────────────────
-
-/** Google Maps URL から緯度経度を抽出する */
 export function parseLatLngFromMapUrl(url: string): { latitude: number; longitude: number } | null {
-  // パターン: @lat,lng,zoom or /place/.../lat,lng or query=lat,lng
   const patterns = [
     /@(-?\d+\.\d+),(-?\d+\.\d+)/,
     /[?&]query=(-?\d+\.\d+),(-?\d+\.\d+)/,
@@ -40,7 +31,7 @@ export function parseLatLngFromMapUrl(url: string): { latitude: number; longitud
   return null;
 }
 
-export function submitRequest(input: {
+export async function submitRequest(input: {
   name: string;
   address: string;
   latitude: number;
@@ -50,51 +41,61 @@ export function submitRequest(input: {
   mapUrl?: string;
   userId: string;
   displayName: string;
-}): ShopRequest {
-  const req: ShopRequest = {
-    id: crypto.randomUUID(),
-    name: input.name.trim(),
-    address: input.address.trim(),
-    latitude: input.latitude,
-    longitude: input.longitude,
-    type: input.type,
-    note: input.note.trim(),
-    mapUrl: input.mapUrl?.trim() || undefined,
-    submittedByUserId: input.userId,
-    submittedByName: input.displayName,
-    status: "pending",
-    createdAt: new Date().toISOString(),
-  };
-  const all = loadAll();
-  all.push(req);
-  saveAll(all);
-  return req;
+}): Promise<ShopRequest> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("shop_requests")
+    .insert({
+      name: input.name.trim(),
+      address: input.address.trim(),
+      latitude: input.latitude,
+      longitude: input.longitude,
+      type: input.type,
+      note: input.note.trim(),
+      map_url: input.mapUrl?.trim() || null,
+      submitted_by_user_id: input.userId,
+      submitted_by_name: input.displayName,
+      status: "pending",
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return mapRequest(data as Record<string, unknown>);
 }
 
-export function loadAllRequests(): ShopRequest[] {
-  return loadAll().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+export async function loadAllRequests(): Promise<ShopRequest[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("shop_requests")
+    .select("*")
+    .order("created_at", { ascending: false });
+  return (data ?? []).map((r) => mapRequest(r as Record<string, unknown>));
 }
 
-export function loadPendingRequests(): ShopRequest[] {
-  return loadAll()
-    .filter((r) => r.status === "pending")
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+export async function loadPendingRequests(): Promise<ShopRequest[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("shop_requests")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+  return (data ?? []).map((r) => mapRequest(r as Record<string, unknown>));
 }
 
-export function updateRequestStatus(
+export async function updateRequestStatus(
   id: string,
   status: "approved" | "rejected",
-): void {
-  const all = loadAll();
-  const idx = all.findIndex((r) => r.id === id);
-  if (idx === -1) return;
-  all[idx] = { ...all[idx], status };
-  saveAll(all);
+): Promise<void> {
+  const supabase = createClient();
+  await supabase.from("shop_requests").update({ status }).eq("id", id);
 }
 
-/** ユーザーが送信したリクエスト一覧 */
-export function loadRequestsByUser(userId: string): ShopRequest[] {
-  return loadAll()
-    .filter((r) => r.submittedByUserId === userId)
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+export async function loadRequestsByUser(userId: string): Promise<ShopRequest[]> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("shop_requests")
+    .select("*")
+    .eq("submitted_by_user_id", userId)
+    .order("created_at", { ascending: false });
+  return (data ?? []).map((r) => mapRequest(r as Record<string, unknown>));
 }

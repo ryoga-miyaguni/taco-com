@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MessageSquare, Search, X } from "lucide-react";
 import { loadAllComments } from "@/lib/comments";
+import type { Comment } from "@/lib/types";
 import { getShopId, SHOP_TYPE_COLOR, SHOP_TYPE_LABEL, type Shop } from "@/lib/types";
 
 const MAX_RESULTS = 8;
@@ -25,13 +26,15 @@ export function ShopSearchBar({
 }) {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
+  const [allComments, setAllComments] = useState<Comment[]>([]);
+
+  useEffect(() => {
+    void loadAllComments().then(setAllComments);
+  }, []);
 
   const results = useMemo((): SearchResult[] => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-
-    // クエリが変わるたびに最新のコメントを読む（キャッシュしない）
-    const allComments = loadAllComments();
 
     // 1. 店舗名・住所でヒットした店舗
     const shopHits = shops.filter(
@@ -68,7 +71,7 @@ export function ShopSearchBar({
       ...shopHits.map((shop) => ({ kind: "shop" as const, shop })),
       ...commentResults,
     ].slice(0, MAX_RESULTS);
-  }, [shops, query]);
+  }, [shops, query, allComments]);
 
   const open = focused && query.trim().length > 0;
 

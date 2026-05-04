@@ -29,7 +29,16 @@ export function MapView({ shops }: { shops: Shop[] }) {
   );
   const [mapReady, setMapReady] = useState(false);
   const [favFilter, setFavFilter] = useState<FavoriteType | null>(null);
+  const [favIds, setFavIds] = useState<Set<string> | null>(null);
   const { user, logout, openAuthModal } = useAuth();
+
+  useEffect(() => {
+    if (favFilter && user) {
+      void getShopIdsByFavoriteType(user.id, favFilter).then(setFavIds);
+    } else {
+      setFavIds(null);
+    }
+  }, [favFilter, user]);
 
   useEffect(() => {
     const container = mapContainerRef.current;
@@ -72,9 +81,6 @@ export function MapView({ shops }: { shops: Shop[] }) {
     const map = mapRef.current;
     if (!map || !mapReady) return;
 
-    const favIds = favFilter && user
-      ? getShopIdsByFavoriteType(user.id, favFilter)
-      : null;
     const visible = shops.filter(
       (s) =>
         activeTypes.has(s.type) &&
@@ -171,7 +177,7 @@ export function MapView({ shops }: { shops: Shop[] }) {
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
     };
-  }, [shops, activeTypes, favFilter, user, mapReady]);
+  }, [shops, activeTypes, favIds, mapReady]);
 
   const handleSelectFromSearch = (shop: Shop) => {
     const map = mapRef.current;
@@ -193,13 +199,10 @@ export function MapView({ shops }: { shops: Shop[] }) {
     });
   };
 
-  const visibleFavIds = favFilter && user
-    ? getShopIdsByFavoriteType(user.id, favFilter)
-    : null;
   const visibleCount = shops.filter(
     (s) =>
       activeTypes.has(s.type) &&
-      (visibleFavIds === null || visibleFavIds.has(getShopId(s))),
+      (favIds === null || favIds.has(getShopId(s))),
   ).length;
 
   return (

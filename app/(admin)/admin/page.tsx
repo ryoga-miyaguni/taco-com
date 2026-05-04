@@ -185,17 +185,28 @@ export default function AdminDashboardPage() {
   const [allReports, setAllReports] = useState<Report[]>([]);
   const [shopsList, setShopsList]   = useState<Shop[]>([]);
 
-  const reload = () => {
-    setRequests(loadAllRequests());
-    setAllComments(loadAllComments());
-    setUsers(loadAllUsers());
-    setAllReports(loadAllReports());
-    setShopsList(getShops());
+  const reload = async () => {
+    const [requests, comments, users, reports, shops, approved] = await Promise.all([
+      loadAllRequests(),
+      loadAllComments(),
+      loadAllUsers(),
+      loadAllReports(),
+      getShops(),
+      loadApprovedShopsPublic(),
+    ]);
+    setRequests(requests);
+    setAllComments(comments);
+    setUsers(users);
+    setAllReports(reports);
+    setShopsList(shops);
+    setApprovedShopIds(new Set(approved.map((s) => getShopId(s))));
   };
 
-  useEffect(() => { reload(); }, []);
+  useEffect(() => { void reload(); }, []);
 
   // ─── 集計 ────────────────────────────────────────────────────────────────
+
+  const [approvedShopIds, setApprovedShopIds] = useState<Set<string>>(new Set());
 
   const topLevelComments = useMemo(() => allComments.filter((c) => !c.parentId), [allComments]);
   const reportedComments = useMemo(
@@ -203,12 +214,6 @@ export default function AdminDashboardPage() {
     [allComments],
   );
   const pendingCount   = useMemo(() => requests.filter((r) => r.status === "pending").length, [requests]);
-
-  const approvedShopIds = useMemo(
-    () => new Set(loadApprovedShopsPublic().map((s) => getShopId(s))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shopsList],
-  );
 
   const shopById = useMemo(() => {
     const m: Record<string, string> = {};
@@ -1349,13 +1354,13 @@ function UsersTab({ users, allComments, onAction }: { users: User[]; allComments
                           詳細
                         </button>
                         {u.isBanned ? (
-                          <button type="button" onClick={() => { unbanUser(u.id); onAction(); }}
+                          <button type="button" onClick={async () => { await unbanUser(u.id); onAction(); }}
                             className="text-[11px] font-bold px-3 h-7 rounded-full border-2 border-ink bg-crema text-ink hover:bg-masa-hi transition-colors">
                             解除
                           </button>
                         ) : (
                           <button type="button"
-                            onClick={() => { if (!window.confirm(`「${u.displayName}」を追放しますか？`)) return; banUser(u.id); onAction(); }}
+                            onClick={async () => { if (!window.confirm(`「${u.displayName}」を追放しますか？`)) return; await banUser(u.id); onAction(); }}
                             className="text-[11px] font-bold px-3 h-7 rounded-full bg-salsa text-crema border-2 border-ink hover:opacity-80 transition-opacity">
                             追放
                           </button>
@@ -1389,13 +1394,13 @@ function UsersTab({ users, allComments, onAction }: { users: User[]; allComments
                       詳細
                     </button>
                     {u.isBanned ? (
-                      <button type="button" onClick={() => { unbanUser(u.id); onAction(); }}
+                      <button type="button" onClick={async () => { await unbanUser(u.id); onAction(); }}
                         className="text-[11px] font-bold px-3 h-8 rounded-full border-2 border-ink bg-crema text-ink hover:bg-masa-hi transition-colors">
                         解除
                       </button>
                     ) : (
                       <button type="button"
-                        onClick={() => { if (!window.confirm(`「${u.displayName}」を追放しますか？`)) return; banUser(u.id); onAction(); }}
+                        onClick={async () => { if (!window.confirm(`「${u.displayName}」を追放しますか？`)) return; await banUser(u.id); onAction(); }}
                         className="text-[11px] font-bold px-3 h-8 rounded-full bg-salsa text-crema border-2 border-ink hover:opacity-80 transition-opacity">
                         追放
                       </button>
@@ -1412,8 +1417,8 @@ function UsersTab({ users, allComments, onAction }: { users: User[]; allComments
         <UserDetailModal
           user={detailUser}
           commentCount={commentCounts[detailUser.id] ?? 0}
-          onBan={() => { banUser(detailUser.id); onAction(); setDetailUser(null); }}
-          onUnban={() => { unbanUser(detailUser.id); onAction(); setDetailUser(null); }}
+          onBan={async () => { await banUser(detailUser.id); onAction(); setDetailUser(null); }}
+          onUnban={async () => { await unbanUser(detailUser.id); onAction(); setDetailUser(null); }}
           onClose={() => setDetailUser(null)}
         />
       )}
@@ -1695,7 +1700,8 @@ function CommentsTab({
 // ─── RankingTab ───────────────────────────────────────────────────────────────
 
 function RankingTab() {
-  const ranking = getCityRanking();
+  const [ranking, setRanking] = useState<{ city: string; count: number }[]>([]);
+  useEffect(() => { void getCityRanking().then(setRanking); }, []);
   const total = ranking.reduce((s, r) => s + r.count, 0);
 
   return (

@@ -97,7 +97,7 @@ function ProfileTag({ children }: { children: React.ReactNode }) {
 // ─── メインページ ────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
-  const { user, logout, updateUser, isLoading } = useAuth();
+  const { user, logout, updateUser, changePassword, deleteAccount, isLoading } = useAuth();
   const router = useRouter();
 
   const [myComments, setMyComments] = useState<Comment[]>([]);
@@ -123,6 +123,22 @@ export default function ProfilePage() {
   const [cityOpen, setCityOpen] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
+  // パスワード変更フォーム
+  const [pwOpen, setPwOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const [pwSubmitting, setPwSubmitting] = useState(false);
+
+  // アカウント削除フォーム
+  const [delOpen, setDelOpen] = useState(false);
+  const [delPassword, setDelPassword] = useState("");
+  const [delConfirm, setDelConfirm] = useState("");
+  const [delError, setDelError] = useState<string | null>(null);
+  const [delSubmitting, setDelSubmitting] = useState(false);
+
   useEffect(() => {
     if (!isLoading && !user) {
       router.replace("/");
@@ -131,26 +147,32 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) return;
-    const all = loadAllComments();
-    setMyComments(
-      all
-        .filter((c) => c.userId === user.id && c.parentId === null)
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
-    );
-    setMyRequests(loadRequestsByUser(user.id));
-    setVisitedCount(getVisitedCount(user.id));
-    const allShops = getShops();
-    const m: Record<string, string> = {};
-    allShops.forEach((s) => { m[getShopId(s)] = s.name; });
-    setShopNameById(m);
-    const favTypes: FavoriteType[] = ["want_to_try", "visited", "want_again"];
-    const byType = Object.fromEntries(
-      favTypes.map((t) => {
-        const ids = getShopIdsByFavoriteType(user.id, t);
-        return [t, allShops.filter((s) => ids.has(getShopId(s)))];
-      }),
-    ) as Record<FavoriteType, Shop[]>;
-    setShopsByFavType(byType);
+    void (async () => {
+      const [all, requests, visited, allShops] = await Promise.all([
+        loadAllComments(),
+        loadRequestsByUser(user.id),
+        getVisitedCount(user.id),
+        getShops(),
+      ]);
+      setMyComments(
+        all
+          .filter((c) => c.userId === user.id && c.parentId === null)
+          .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      );
+      setMyRequests(requests);
+      setVisitedCount(visited);
+      const m: Record<string, string> = {};
+      allShops.forEach((s) => { m[getShopId(s)] = s.name; });
+      setShopNameById(m);
+      const favTypes: FavoriteType[] = ["want_to_try", "visited", "want_again"];
+      const byTypeEntries = await Promise.all(
+        favTypes.map(async (t) => {
+          const ids = await getShopIdsByFavoriteType(user.id, t);
+          return [t, allShops.filter((s) => ids.has(getShopId(s)))] as const;
+        }),
+      );
+      setShopsByFavType(Object.fromEntries(byTypeEntries) as Record<FavoriteType, Shop[]>);
+    })();
   }, [user]);
 
   if (isLoading || !user) return null;
@@ -173,14 +195,14 @@ export default function ProfilePage() {
     setEditMode(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setEditError(null);
     const year = Number(birthYear);
     if (birthYear && (!/^\d{4}$/.test(birthYear) || year < 1920 || year > CURRENT_YEAR - 10)) {
       setEditError("生まれた年を正しく入力してください");
       return;
     }
-    updateUser({
+    await updateUser({
       birthYear: birthYear ? year : undefined,
       transport: transport || undefined,
       shellPreference: shellPreference || undefined,
@@ -689,19 +711,219 @@ export default function ProfilePage() {
           </section>
         )}
 
-        {/* ログアウト */}
-        <div className="pt-4 border-t-2 border-dashed border-ink/30">
+        {/* アカウント設定 */}
+        <section className="pt-4 border-t-2 border-dashed border-ink/30 space-y-3">
+          <h2 className="font-serif-it text-[10px] tracking-[0.22em] uppercase text-naranja-deep">アカウント設定</h2>
+
+          {/* パスワード変更（メール登録ユーザーのみ） */}
+          {user.authProvider === "email" && (
+            <div className="border-2 border-ink rounded-2xl bg-crema overflow-hidden">
+              <button
+                type="button"
+                onClick={() => {
+                  setPwOpen((v) => !v);
+                  setPwError(null);
+                  setPwSuccess(false);
+                  setCurrentPassword("");
+                  setNewPassword("");
+                  setNewPasswordConfirm("");
+                }}
+                className="w-full px-4 py-3 flex items-center justify-between font-display text-[13px] text-ink hover:bg-masa-hi transition-colors"
+              >
+                <span>🔒 パスワードを変更</span>
+                <span className="text-[11px] text-ink/40">{pwOpen ? "閉じる" : "開く"}</span>
+              </button>
+              {pwOpen && (
+                <form
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    setPwError(null);
+                    if (!currentPassword) { setPwError("現在のパスワードを入力してください"); return; }
+                    if (newPassword.length < 8) { setPwError("新しいパスワードは8文字以上にしてください"); return; }
+                    if (newPassword !== newPasswordConfirm) { setPwError("確認用パスワードが一致しません"); return; }
+                    setPwSubmitting(true);
+                    try {
+                      const result = await changePassword(currentPassword, newPassword);
+                      if (result.error) {
+                        setPwError(result.error);
+                      } else {
+                        setPwSuccess(true);
+                        setCurrentPassword("");
+                        setNewPassword("");
+                        setNewPasswordConfirm("");
+                      }
+                    } finally {
+                      setPwSubmitting(false);
+                    }
+                  }}
+                  className="px-4 pb-4 pt-1 space-y-3 border-t-2 border-dashed border-ink/20"
+                >
+                  <div>
+                    <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">現在のパスワード</label>
+                    <input
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">
+                      新しいパスワード <span className="ml-1 normal-case tracking-normal text-ink/50">（8文字以上）</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-naranja-deep block mb-1.5">確認用</label>
+                    <input
+                      type="password"
+                      value={newPasswordConfirm}
+                      onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="new-password"
+                      className="w-full bg-white border-2 border-ink rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+                    />
+                  </div>
+                  {pwError && (
+                    <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">{pwError}</p>
+                  )}
+                  {pwSuccess && (
+                    <p className="text-[12px] font-bold text-naranja-deep bg-naranja/10 border border-naranja rounded-lg px-3 py-2">
+                      ✅ パスワードを変更しました
+                    </p>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={pwSubmitting}
+                    className="w-full font-display text-[13px] h-10 rounded-full bg-naranja text-crema border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] transition-all disabled:opacity-60"
+                  >
+                    {pwSubmitting ? "更新中…" : "パスワードを更新"}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+          {/* Google ログインユーザー向け案内 */}
+          {user.authProvider === "google" && (
+            <div className="border-2 border-ink/30 rounded-2xl bg-masa-lo px-4 py-3">
+              <p className="text-[12px] text-ink/70 leading-relaxed">
+                🔐 Googleアカウントでログインしているため、パスワード変更は不要です。
+              </p>
+            </div>
+          )}
+
+          {/* ログアウト */}
           <button
             type="button"
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              await logout();
               router.replace("/");
             }}
             className="w-full font-display text-[14px] h-11 rounded-full border-2 border-ink text-ink hover:bg-salsa hover:text-crema hover:border-salsa transition-colors shadow-[2px_2px_0_var(--ink)]"
           >
             ログアウト
           </button>
-        </div>
+
+          {/* アカウント削除（折りたたみ） */}
+          <div className="border-2 border-salsa/40 rounded-2xl bg-salsa/5 overflow-hidden mt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setDelOpen((v) => !v);
+                setDelError(null);
+                setDelPassword("");
+                setDelConfirm("");
+              }}
+              className="w-full px-4 py-3 flex items-center justify-between font-display text-[13px] text-salsa hover:bg-salsa/10 transition-colors"
+            >
+              <span>⚠️ アカウントを削除</span>
+              <span className="text-[11px] text-salsa/60">{delOpen ? "閉じる" : "開く"}</span>
+            </button>
+            {delOpen && (
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setDelError(null);
+                  if (user.authProvider === "email") {
+                    if (!delPassword) { setDelError("パスワードを入力してください"); return; }
+                  }
+                  if (delConfirm !== "DELETE") {
+                    setDelError("「DELETE」と入力してください（半角大文字）");
+                    return;
+                  }
+                  if (!window.confirm("本当にアカウントを削除しますか？\nこの操作は取り消せません。")) return;
+                  setDelSubmitting(true);
+                  try {
+                    const result = await deleteAccount({
+                      password: user.authProvider === "email" ? delPassword : undefined,
+                      confirm: "DELETE",
+                    });
+                    if (result.error) {
+                      setDelError(result.error);
+                    } else {
+                      router.replace("/");
+                    }
+                  } finally {
+                    setDelSubmitting(false);
+                  }
+                }}
+                className="px-4 pb-4 pt-1 space-y-3 border-t-2 border-dashed border-salsa/30"
+              >
+                <p className="text-[12px] text-ink leading-relaxed">
+                  アカウントを削除すると、プロフィール・コメント・お気に入り・スタンプ・通報・店舗リクエストなど、あなたに紐づく全データが完全に削除されます。<strong className="text-salsa">この操作は取り消せません。</strong>
+                </p>
+                {user.authProvider === "email" && (
+                  <div>
+                    <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-salsa block mb-1.5">
+                      現在のパスワード
+                    </label>
+                    <input
+                      type="password"
+                      value={delPassword}
+                      onChange={(e) => setDelPassword(e.target.value)}
+                      placeholder="••••••••"
+                      autoComplete="current-password"
+                      className="w-full bg-white border-2 border-salsa rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-salsa"
+                    />
+                  </div>
+                )}
+                <div>
+                  <label className="font-serif-it text-[10px] tracking-[0.2em] uppercase text-salsa block mb-1.5">
+                    確認のため <code className="font-mono bg-salsa/10 px-1 rounded">DELETE</code> と入力
+                  </label>
+                  <input
+                    type="text"
+                    value={delConfirm}
+                    onChange={(e) => setDelConfirm(e.target.value)}
+                    placeholder="DELETE"
+                    autoComplete="off"
+                    className="w-full bg-white border-2 border-salsa rounded-full px-4 h-10 text-[13px] outline-none focus:ring-2 focus:ring-salsa font-mono"
+                  />
+                </div>
+                {delError && (
+                  <p className="text-[12px] font-bold text-salsa bg-salsa/10 border border-salsa rounded-lg px-3 py-2">{delError}</p>
+                )}
+                <button
+                  type="submit"
+                  disabled={delSubmitting}
+                  className="w-full font-display text-[13px] h-10 rounded-full bg-salsa text-crema border-2 border-salsa shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] transition-all disabled:opacity-60"
+                >
+                  {delSubmitting ? "削除中…" : "アカウントを完全に削除する"}
+                </button>
+              </form>
+            )}
+          </div>
+        </section>
       </main>
     </div>
   );

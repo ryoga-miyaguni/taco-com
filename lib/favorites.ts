@@ -1,106 +1,77 @@
+import { createClient } from "@/lib/supabase/client";
 import type { Favorite, FavoriteType } from "./types";
 
-const FAVORITES_KEY = "taco-com:favorites:v1";
-
-function isBrowser(): boolean {
-  return typeof window !== "undefined";
+export async function getFavorite(shopId: string, userId: string): Promise<FavoriteType | null> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("favorites")
+    .select("type")
+    .eq("shop_id", shopId)
+    .eq("user_id", userId)
+    .single();
+  return (data as { type: FavoriteType } | null)?.type ?? null;
 }
 
-function loadAll(): Favorite[] {
-  if (!isBrowser()) return [];
-  const raw = localStorage.getItem(FAVORITES_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    // Migrate old "want_to_go" → "want_to_try"
-    return (parsed as Favorite[]).map((f) => ({
-      ...f,
-      type: (f.type as string) === "want_to_go" ? "want_to_try" : f.type,
-    })) as Favorite[];
-  } catch {
-    return [];
-  }
-}
-
-function saveAll(favs: Favorite[]): void {
-  if (!isBrowser()) return;
-  localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
-}
-
-// ─── 公開 API ────────────────────────────────────────────────────────────────
-
-export function getFavorite(shopId: string, userId: string): FavoriteType | null {
-  return loadAll().find((f) => f.shopId === shopId && f.userId === userId)?.type ?? null;
-}
-
-export function toggleFavorite(
+export async function toggleFavorite(
   shopId: string,
   userId: string,
   type: FavoriteType,
-): FavoriteType | null {
-  const all = loadAll();
-  const idx = all.findIndex((f) => f.shopId === shopId && f.userId === userId);
+): Promise<FavoriteType | null> {
+  const supabase = createClient();
+  const current = await getFavorite(shopId, userId);
 
-  if (idx !== -1) {
-    if (all[idx].type === type) {
-      all.splice(idx, 1);
-      saveAll(all);
-      return null;
-    }
-    all[idx] = { shopId, userId, type };
-    saveAll(all);
-    return type;
+  if (current === type) {
+    await supabase.from("favorites").delete().eq("shop_id", shopId).eq("user_id", userId);
+    return null;
   }
 
-  all.push({ shopId, userId, type });
-  saveAll(all);
+  await supabase.from("favorites").upsert(
+    { shop_id: shopId, user_id: userId, type },
+    { onConflict: "shop_id,user_id" },
+  );
   return type;
 }
 
-export function getWantToTryShopIds(userId: string): Set<string> {
-  return new Set(
-    loadAll()
-      .filter((f) => f.userId === userId && f.type === "want_to_try")
-      .map((f) => f.shopId),
-  );
+export async function getShopIdsByFavoriteType(userId: string, type: FavoriteType): Promise<Set<string>> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("favorites")
+    .select("shop_id")
+    .eq("user_id", userId)
+    .eq("type", type);
+  return new Set((data ?? []).map((r: { shop_id: string }) => r.shop_id));
 }
 
-export function getVisitedShopIds(userId: string): Set<string> {
-  return new Set(
-    loadAll()
-      .filter((f) => f.userId === userId && f.type === "visited")
-      .map((f) => f.shopId),
-  );
+export async function getAllFavoriteShopIds(userId: string): Promise<Set<string>> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from("favorites")
+    .select("shop_id")
+    .eq("user_id", userId);
+  return new Set((data ?? []).map((r: { shop_id: string }) => r.shop_id));
 }
 
-export function getWantAgainShopIds(userId: string): Set<string> {
-  return new Set(
-    loadAll()
-      .filter((f) => f.userId === userId && f.type === "want_again")
-      .map((f) => f.shopId),
-  );
+export async function getVisitedCount(userId: string): Promise<number> {
+  const supabase = createClient();
+  const { count } = await supabase
+    .from("favorites")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .in("type", ["visited", "want_again"]);
+  return count ?? 0;
 }
 
-export function getShopIdsByFavoriteType(userId: string, type: FavoriteType): Set<string> {
-  return new Set(
-    loadAll()
-      .filter((f) => f.userId === userId && f.type === type)
-      .map((f) => f.shopId),
-  );
+export async function getWantToTryShopIds(userId: string): Promise<Set<string>> {
+  return getShopIdsByFavoriteType(userId, "want_to_try");
 }
 
-export function getAllFavoriteShopIds(userId: string): Set<string> {
-  return new Set(
-    loadAll()
-      .filter((f) => f.userId === userId)
-      .map((f) => f.shopId),
-  );
+export async function getVisitedShopIds(userId: string): Promise<Set<string>> {
+  return getShopIdsByFavoriteType(userId, "visited");
 }
 
-/** 訪問済み件数（visited + want_again） */
-export function getVisitedCount(userId: string): number {
-  return loadAll().filter(
-    (f) => f.userId === userId && (f.type === "visited" || f.type === "want_again"),
-  ).length;
+export async function getWantAgainShopIds(userId: string): Promise<Set<string>> {
+  return getShopIdsByFavoriteType(userId, "want_again");
 }
+
+// 未使用だが型互換のためエクスポート
+export type { Favorite };

@@ -28,29 +28,35 @@ export function ShopDetailPanel({
   const [userStamps, setUserStamps] = useState<StampKey[]>([]);
   const [avgRatings, setAvgRatings] = useState<SliderRatings | null>(null);
 
-  const reloadStamps = () => {
-    setStampCounts(getStampCounts(shopId));
-    setUserStamps(user ? getUserStamps(shopId, user.id) : []);
+  const reloadStamps = async () => {
+    const [counts, stamps] = await Promise.all([
+      getStampCounts(shopId),
+      user ? getUserStamps(shopId, user.id) : Promise.resolve([]),
+    ]);
+    setStampCounts(counts);
+    setUserStamps(stamps);
   };
 
   useEffect(() => {
-    setFavType(user ? getFavorite(shopId, user.id) : null);
-    reloadStamps();
-    setAvgRatings(getShopSliderRatings(shopId));
+    if (user) {
+      void getFavorite(shopId, user.id).then(setFavType);
+    } else {
+      setFavType(null);
+    }
+    void reloadStamps();
+    void getShopSliderRatings(shopId).then(setAvgRatings);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId, user]);
 
   const handleFav = (type: FavoriteType) => {
     if (!requireAuth()) return;
-    const next = toggleFavorite(shopId, user!.id, type);
-    setFavType(next);
+    void toggleFavorite(shopId, user!.id, type).then(setFavType);
   };
 
   const handleStamp = (key: StampKey) => {
     if (!requireAuth()) return;
-    const next = toggleStamp(shopId, user!.id, key);
-    setUserStamps(next);
-    setStampCounts(getStampCounts(shopId));
+    void toggleStamp(shopId, user!.id, key).then(setUserStamps);
+    void getStampCounts(shopId).then(setStampCounts);
   };
 
   return (

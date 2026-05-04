@@ -3,6 +3,7 @@ import { Fraunces, Zen_Kaku_Gothic_New, RocknRoll_One } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { AuthModal } from "@/components/AuthModal";
+import { AuthErrorToast } from "@/components/AuthErrorToast";
 
 const fraunces = Fraunces({
   variable: "--font-serif",
@@ -45,6 +46,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
           <AuthModal />
+          <AuthErrorToast />
         </AuthProvider>
       </body>
     </html>
