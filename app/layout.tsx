@@ -1,9 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Zen_Kaku_Gothic_New, RocknRoll_One } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { AuthModal } from "@/components/AuthModal";
 import { AuthErrorToast } from "@/components/AuthErrorToast";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://taco-com.vercel.app";
+const SITE_NAME = "オキナワタコスマップ";
+const SITE_DESCRIPTION = "沖縄県内のタコス店を地図で探せる、ユーザー口コミ型のタコスマップ";
+const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
 
 const fraunces = Fraunces({
   variable: "--font-serif",
@@ -28,8 +35,49 @@ const rocknRoll = RocknRoll_One({
 });
 
 export const metadata: Metadata = {
-  title: "沖縄タコスマップ — Mercado de Tacos",
-  description: "沖縄県内のタコス店を地図で探せる口コミコミュニティ",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: `${SITE_NAME} — Mercado de Tacos`,
+    template: `%s — ${SITE_NAME}`,
+  },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: ["沖縄", "タコス", "タコスマップ", "メキシカン", "口コミ", "オキナワタコスマップ"],
+  authors: [{ name: "オキナワタコスマップ運営" }],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "ja_JP",
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} — Mercado de Tacos`,
+    description: SITE_DESCRIPTION,
+    url: SITE_URL,
+    // OGP 画像は app/opengraph-image.tsx で動的生成され
+    // /opengraph-image として配信される。Next.js が自動でメタタグを挿入。
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE_NAME} — Mercado de Tacos`,
+    description: SITE_DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#ea580c", // naranja
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -48,6 +96,8 @@ export default function RootLayout({
           <AuthModal />
           <AuthErrorToast />
         </AuthProvider>
+        <Analytics />
+        {GA_ID && <GoogleAnalytics gaId={GA_ID} />}
       </body>
     </html>
   );

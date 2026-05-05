@@ -166,7 +166,13 @@ export default function PrivacyPage() {
             <div>
               <p className="font-bold text-[12px] text-ink">Google LLC（米国）</p>
               <p className="text-[12px] text-muted-foreground mt-0.5">
-                Google アカウントでのログイン認証および Google Fonts によるフォント配信に利用しています。
+                Google アカウントでのログイン認証、Google Fonts によるフォント配信、および Google Analytics による利用状況の集計に利用しています。Google Analytics は IP アドレスを匿名化した上で統計情報を取得し、サービスの改善目的のみに使用します。Cookie の保存を拒否することで Google Analytics の収集を停止できます。
+              </p>
+            </div>
+            <div>
+              <p className="font-bold text-[12px] text-ink">Vercel Analytics（米国）</p>
+              <p className="text-[12px] text-muted-foreground mt-0.5">
+                ページビュー等の利用状況の集計に Vercel Analytics を利用しています。Cookie を使用せず、個人を特定する情報は収集しません。
               </p>
             </div>
             <div>
