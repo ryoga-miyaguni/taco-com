@@ -273,6 +273,15 @@ export function MapView({ shops }: { shops: Shop[] }) {
         >
           プライバシー
         </Link>
+        <a
+          href="https://forms.gle/92xhywyaP8wbdmg1A"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="paper card-stamp-sm rounded-full px-3 h-9 flex items-center gap-1 font-display text-[12px] text-ink hover:bg-naranja transition-colors"
+        >
+          お問い合わせ
+          <span aria-hidden className="text-[10px] opacity-60">↗</span>
+        </a>
         {user && (
           <button
             type="button"
@@ -440,6 +449,19 @@ function UserFab() {
           >
             プライバシーポリシー
           </Link>
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              window.open("https://forms.gle/92xhywyaP8wbdmg1A", "_blank", "noopener,noreferrer");
+              setOpen(false);
+            }}
+            className="w-full paper card-stamp rounded-full h-10 flex items-center justify-center gap-1 font-display text-[13px] text-ink border-2 border-ink shadow-[3px_3px_0_var(--ink)] whitespace-nowrap hover:bg-naranja transition-colors"
+          >
+            お問い合わせ
+            <span aria-hidden className="text-[10px] opacity-60">↗</span>
+          </button>
           {user && (
             <button
               type="button"
