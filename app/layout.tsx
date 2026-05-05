@@ -11,6 +11,7 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://taco-com.vercel.ap
 const SITE_NAME = "オキナワタコスマップ";
 const SITE_DESCRIPTION = "沖縄県内のタコス店を地図で探せる、ユーザー口コミ型のタコスマップ";
 const GA_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
+const GOOGLE_SITE_VERIFICATION = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 
 const fraunces = Fraunces({
   variable: "--font-serif",
@@ -72,6 +73,13 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  // Google Search Console の所有権確認用メタタグ。
+  // env NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION に Search Console から発行された
+  // トークン（content="..." の中身）を入れると <meta name="google-site-verification">
+  // が出力される。
+  ...(GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: GOOGLE_SITE_VERIFICATION } }
+    : {}),
 };
 
 export const viewport: Viewport = {
