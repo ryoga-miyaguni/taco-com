@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   getShops, loadApprovedShopsPublic, deleteApprovedShop,
-  saveApprovedShop, saveShopOverride,
+  saveApprovedShop, saveShopOverride, adminRenameShop,
 } from "@/lib/shops";
 import {
   SHOP_TYPE_LABEL, REPORT_REASON_LABEL,
@@ -515,6 +515,7 @@ function ShopsTab({
   const [search, setSearch]         = useState("");
   const [typeFilter, setTypeFilter] = useState<ShopType | "all">("all");
   const [editTarget, setEditTarget] = useState<{ shop: Shop; sid: string } | null>(null);
+  const [addOpen, setAddOpen]       = useState(false);
 
   const commentCounts = useMemo(() => {
     const m: Record<string, number> = {};
@@ -548,6 +549,13 @@ function ShopsTab({
           <option value="okinawa">沖縄タコス</option>
           <option value="mexican">メキシカン</option>
         </select>
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          className="h-10 px-5 rounded-full bg-naranja text-crema font-display text-[13px] border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] transition-all whitespace-nowrap"
+        >
+          ＋ 店舗を追加
+        </button>
       </div>
 
       <p className="text-[11px] font-mono text-muted-foreground">{filtered.length} / {shops.length} 件</p>
@@ -658,6 +666,13 @@ function ShopsTab({
           onClose={() => setEditTarget(null)}
         />
       )}
+
+      {addOpen && (
+        <ShopAddModal
+          onSave={() => { onChanged(); setAddOpen(false); }}
+          onClose={() => setAddOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -667,6 +682,9 @@ const DEFAULT_SLIDER: SliderRatings = { texture: 2, style: 2, volume: 2, atmosph
 function ShopEditModal({ shop: s, sid, onSave, onClose }: {
   shop: Shop; sid: string; onSave: () => void; onClose: () => void;
 }) {
+  const [name, setName]           = useState(s.name);
+  const [lat, setLat]             = useState(String(s.latitude));
+  const [lng, setLng]             = useState(String(s.longitude));
   const [address, setAddress]     = useState(s.address);
   const [type, setType]           = useState<ShopType>(s.type);
   const [hours, setHours]         = useState(s.business_hours);
@@ -677,7 +695,19 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
   const [x, setX]                 = useState(s.x ?? "");
   const [sliderRatings, setSliderRatings] = useState<SliderRatings>(s.sliderRatings ?? DEFAULT_SLIDER);
   const [hasSlider, setHasSlider] = useState(!!s.sliderRatings);
+  const [errors, setErrors]       = useState<string[]>([]);
+  const [saving, setSaving]       = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ID（= name@lat,lng）の差分検知
+  const trimmedName = name.trim();
+  const latN = parseFloat(lat);
+  const lngN = parseFloat(lng);
+  const newId =
+    trimmedName && !isNaN(latN) && !isNaN(lngN)
+      ? `${trimmedName}@${latN.toFixed(5)},${lngN.toFixed(5)}`
+      : sid;
+  const idChanged = newId !== sid;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -687,25 +717,77 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
-    saveShopOverride(sid, {
-      address: address.trim(),
-      type,
-      business_hours: hours.trim() || "—",
-      note: note.trim(),
-      image_url: imageUrl.trim() || undefined,
-      website:   website.trim()   || undefined,
-      instagram: instagram.trim() || undefined,
-      x:         x.trim()         || undefined,
-      sliderRatings: hasSlider ? sliderRatings : undefined,
-    });
-    onSave();
+  const handleSave = async () => {
+    const errs: string[] = [];
+    if (!trimmedName)    errs.push("店舗名を入力してください");
+    if (!address.trim()) errs.push("住所を入力してください");
+    if (isNaN(latN) || latN === 0) errs.push("緯度が無効です（沖縄は約26.0〜27.0）");
+    if (isNaN(lngN) || lngN === 0) errs.push("経度が無効です（沖縄は約126.0〜129.0）");
+    if (errs.length > 0) { setErrors(errs); return; }
+
+    if (idChanged) {
+      const ok = window.confirm(
+        `店舗名または座標を変更しました。\n\n旧ID: ${sid}\n新ID: ${newId}\n\n` +
+        `関連するコメント・お気に入り・スタンプを新IDに付け替えます。よろしいですか？`,
+      );
+      if (!ok) return;
+    }
+
+    setErrors([]);
+    setSaving(true);
+    try {
+      if (idChanged) {
+        await adminRenameShop(sid, newId);
+      }
+      // 空文字も明示的に渡す。saveShopOverride が "" → null に変換し、
+      // DB の任意フィールドを正しくクリアできる。
+      await saveShopOverride(newId, {
+        name: trimmedName,
+        latitude: latN,
+        longitude: lngN,
+        address: address.trim(),
+        type,
+        business_hours: hours.trim() || "—",
+        note: note.trim(),
+        image_url: imageUrl.trim(),
+        website:   website.trim(),
+        instagram: instagram.trim(),
+        x:         x.trim(),
+        sliderRatings: hasSlider ? sliderRatings : undefined,
+      });
+      onSave();
+    } catch (err) {
+      setErrors([err instanceof Error ? err.message : "保存に失敗しました"]);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <Modal title={s.name} subtitle="店舗情報を編集" onClose={onClose}>
-      <div className="bg-masa-hi border-2 border-ink/20 rounded-xl px-3 py-2 text-[11px] font-mono text-muted-foreground">
-        {s.latitude.toFixed(5)}, {s.longitude.toFixed(5)} — 名称・座標は変更不可
+      <Field label="店舗名" required>
+        <input value={name} onChange={(e) => setName(e.target.value)} className={inputCls} />
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="緯度 (latitude)" required>
+          <input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="例: 26.21231" className={inputCls} />
+        </Field>
+        <Field label="経度 (longitude)" required>
+          <input value={lng} onChange={(e) => setLng(e.target.value)} placeholder="例: 127.68123" className={inputCls} />
+        </Field>
+      </div>
+      {idChanged && (
+        <div className="bg-naranja/10 border-2 border-naranja/40 rounded-xl px-3 py-2 text-[11px] text-naranja-deep leading-relaxed">
+          ⚠ 店舗ID（名称＋座標）が変わるため、保存時に関連するコメント・お気に入り・スタンプも新IDへ付け替わります。誤入力に注意してください。
+        </div>
+      )}
+      <div className="bg-masa-hi border-2 border-ink/20 rounded-xl px-3 py-2 text-[10px] font-mono text-muted-foreground break-all">
+        現在のID: {sid}
+        {idChanged && (
+          <>
+            <br />新しいID: <span className="text-naranja-deep">{newId}</span>
+          </>
+        )}
       </div>
 
       {/* 写真 */}
@@ -816,14 +898,232 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
         )}
       </div>
 
+      {errors.length > 0 && (
+        <div className="space-y-1 bg-salsa/8 border-2 border-salsa/30 rounded-xl p-3">
+          {errors.map((e) => <p key={e} className="text-[12px] text-salsa font-bold">{e}</p>)}
+        </div>
+      )}
+
       <div className="flex gap-2 pt-1">
-        <button type="button" onClick={onClose}
-          className="flex-1 h-10 rounded-full border-2 border-ink/20 font-display text-[13px] text-ink/50 hover:border-ink/40 hover:text-ink transition-colors">
+        <button type="button" onClick={onClose} disabled={saving}
+          className="flex-1 h-10 rounded-full border-2 border-ink/20 font-display text-[13px] text-ink/50 hover:border-ink/40 hover:text-ink transition-colors disabled:opacity-50">
           キャンセル
         </button>
-        <button type="button" onClick={handleSave}
-          className="flex-1 h-10 rounded-full bg-naranja text-crema font-display text-[13px] border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] transition-all">
-          保存する
+        <button type="button" onClick={handleSave} disabled={saving}
+          className="flex-1 h-10 rounded-full bg-naranja text-crema font-display text-[13px] border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] transition-all disabled:opacity-60">
+          {saving ? "保存中…" : "保存する"}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── ShopAddModal — 運営からの直接登録 ──────────────────────────────────────
+
+function ShopAddModal({ onSave, onClose }: {
+  onSave: () => void;
+  onClose: () => void;
+}) {
+  const [name, setName]           = useState("");
+  const [address, setAddress]     = useState("");
+  const [type, setType]           = useState<ShopType>("okinawa");
+  const [lat, setLat]             = useState("");
+  const [lng, setLng]             = useState("");
+  const [hours, setHours]         = useState("");
+  const [note, setNote]           = useState("");
+  const [imageUrl, setImageUrl]   = useState("");
+  const [website, setWebsite]     = useState("");
+  const [instagram, setInstagram] = useState("");
+  const [x, setX]                 = useState("");
+  const [hasSlider, setHasSlider] = useState(false);
+  const [sliderRatings, setSliderRatings] = useState<SliderRatings>(DEFAULT_SLIDER);
+  const [errors, setErrors]       = useState<string[]>([]);
+  const [saving, setSaving]       = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setImageUrl(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async () => {
+    const errs: string[] = [];
+    if (!name.trim())    errs.push("店舗名を入力してください");
+    if (!address.trim()) errs.push("住所を入力してください");
+    const latN = parseFloat(lat);
+    const lngN = parseFloat(lng);
+    if (isNaN(latN) || latN === 0) errs.push("緯度が無効です（沖縄は約26.0〜27.0）");
+    if (isNaN(lngN) || lngN === 0) errs.push("経度が無効です（沖縄は約126.0〜129.0）");
+    if (errs.length > 0) { setErrors(errs); return; }
+
+    setErrors([]);
+    setSaving(true);
+    try {
+      await saveApprovedShop({
+        name: name.trim(),
+        address: address.trim(),
+        type,
+        latitude: latN,
+        longitude: lngN,
+        business_hours: hours.trim() || "—",
+        note: note.trim(),
+        image_url: imageUrl.trim() || undefined,
+        website:   website.trim()   || undefined,
+        instagram: instagram.trim() || undefined,
+        x:         x.trim()         || undefined,
+        sliderRatings: hasSlider ? sliderRatings : undefined,
+      });
+      onSave();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title="店舗を追加" subtitle="運営からの直接登録" onClose={onClose}>
+      <Field label="店舗名" required>
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="例: 〇〇タコス" className={inputCls} />
+      </Field>
+      <Field label="住所" required>
+        <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="例: 沖縄県那覇市…" className={inputCls} />
+      </Field>
+      <Field label="種別" required>
+        <select value={type} onChange={(e) => setType(e.target.value as ShopType)} className={selectCls}>
+          <option value="okinawa">沖縄タコス</option>
+          <option value="mexican">メキシカン</option>
+        </select>
+      </Field>
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="緯度 (latitude)" required>
+          <input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="例: 26.21231" className={inputCls} />
+        </Field>
+        <Field label="経度 (longitude)" required>
+          <input value={lng} onChange={(e) => setLng(e.target.value)} placeholder="例: 127.68123" className={inputCls} />
+        </Field>
+      </div>
+      <p className="text-[10px] text-muted-foreground -mt-2">
+        Google Mapsで対象地点を右クリック → 表示された数値（先=緯度・後=経度）をコピーできます。
+      </p>
+
+      <Field label="営業時間">
+        <input value={hours} onChange={(e) => setHours(e.target.value)} placeholder="例: 11:00–20:00 / 火定休" className={inputCls} />
+      </Field>
+      <Field label="メモ・説明">
+        <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2}
+          className="w-full bg-white border-2 border-ink/30 rounded-xl px-3 py-2 text-[13px] outline-none focus:border-naranja resize-none" />
+      </Field>
+
+      <Field label="写真">
+        <div className="space-y-2">
+          {imageUrl && (
+            <div className="relative w-full aspect-video rounded-xl overflow-hidden border-2 border-ink/20 bg-masa-hi">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={imageUrl} alt="プレビュー" className="w-full h-full object-cover" />
+              <button
+                type="button"
+                onClick={() => { setImageUrl(""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-ink/60 text-crema text-[12px] flex items-center justify-center hover:bg-ink transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="h-9 px-4 rounded-full border-2 border-ink/30 font-display text-[12px] text-ink hover:border-ink hover:bg-masa-hi transition-colors"
+            >
+              ファイルを選択
+            </button>
+            <span className="flex items-center text-[11px] text-muted-foreground font-serif-it italic">または</span>
+            <input
+              value={imageUrl.startsWith("data:") ? "" : imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              placeholder="画像URLを貼り付け"
+              className={`flex-1 ${inputCls}`}
+            />
+          </div>
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+          <p className="text-[10px] text-muted-foreground">
+            未設定の場合は地図カードに「No Image」プレースホルダーを表示します。
+          </p>
+        </div>
+      </Field>
+
+      <Field label="HP（URL）">
+        <input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://..." className={inputCls} />
+      </Field>
+      <Field label="Instagram（URL）">
+        <input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="https://instagram.com/..." className={inputCls} />
+      </Field>
+      <Field label="X / Twitter（URL）">
+        <input value={x} onChange={(e) => setX(e.target.value)} placeholder="https://x.com/..." className={inputCls} />
+      </Field>
+
+      {/* みんなの声（スライダー評価） */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] font-display font-bold text-ink">みんなの声（スライダー評価）</span>
+          <button
+            type="button"
+            onClick={() => setHasSlider((v) => !v)}
+            className={`h-7 px-3 rounded-full text-[11px] font-display border-2 border-ink transition-colors ${
+              hasSlider ? "bg-naranja text-crema" : "bg-crema text-ink hover:bg-masa-hi"
+            }`}
+          >
+            {hasSlider ? "設定あり" : "設定なし"}
+          </button>
+        </div>
+        {hasSlider && (
+          <div className="bg-masa-hi border-2 border-ink/20 rounded-xl px-4 py-3 space-y-4">
+            {SLIDER_RATING_DEF.map(({ key, label, left, right }) => {
+              const val = sliderRatings[key];
+              return (
+                <div key={key}>
+                  <p className="text-[12px] font-display font-bold text-ink mb-1.5">{label}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-ink/70 w-14 text-right shrink-0">{left}</span>
+                    <div className="flex gap-2 flex-1 justify-between">
+                      {([1, 2, 3, 4] as const).map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setSliderRatings((prev) => ({ ...prev, [key]: n }))}
+                          className={`h-8 w-8 rounded-full border-2 transition-all ${
+                            n === val
+                              ? "bg-naranja border-ink shadow-[2px_2px_0_var(--ink)]"
+                              : "bg-white border-ink/25 hover:border-naranja/70"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[11px] text-ink/70 w-14 shrink-0">{right}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {errors.length > 0 && (
+        <div className="space-y-1 bg-salsa/8 border-2 border-salsa/30 rounded-xl p-3">
+          {errors.map((e) => <p key={e} className="text-[12px] text-salsa font-bold">{e}</p>)}
+        </div>
+      )}
+
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={onClose} disabled={saving}
+          className="flex-1 h-10 rounded-full border-2 border-ink/20 font-display text-[13px] text-ink/50 hover:border-ink/40 hover:text-ink transition-colors disabled:opacity-50">
+          キャンセル
+        </button>
+        <button type="button" onClick={handleSave} disabled={saving}
+          className="flex-1 h-10 rounded-full bg-naranja text-crema font-display text-[13px] border-2 border-ink shadow-[2px_2px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[1px_1px_0_var(--ink)] transition-all disabled:opacity-60">
+          {saving ? "登録中…" : "店舗を登録 ✓"}
         </button>
       </div>
     </Modal>
