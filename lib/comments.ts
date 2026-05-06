@@ -1,7 +1,9 @@
 import { createClient } from "@/lib/supabase/client";
 import type { AvatarKey, Comment } from "./types";
-import { deleteLikesForComment } from "./likes";
-import { deleteReportsForComment } from "./reports";
+
+// 関連データ (likes / reports / replies) は DB 側の
+// FK ON DELETE CASCADE で自動削除される。
+// 詳細: supabase/migrations/20260504_phase3_cascade_and_seed_cleanup.sql
 
 // ─── DB 行 → Comment 型マッピング ────────────────────────────────────────────
 
@@ -152,17 +154,11 @@ export async function editComment(id: string, userId: string, body: string): Pro
   return !error;
 }
 
-/** コメント削除（自分のコメントのみ） */
+/** コメント削除（自分のコメントのみ）
+ *  返信・likes・reports は FK ON DELETE CASCADE で連動削除される。 */
 export async function deleteComment(id: string, userId: string): Promise<void> {
   const supabase = createClient();
-  // 返信を先に取得してから削除
-  const { data: replies } = await supabase.from("comments").select("id").eq("parent_id", id);
-  const idsToDelete = [id, ...(replies ?? []).map((r: { id: string }) => r.id)];
   await supabase.from("comments").delete().eq("id", id).eq("user_id", userId);
-  for (const cid of idsToDelete) {
-    await deleteLikesForComment(cid);
-    await deleteReportsForComment(cid);
-  }
 }
 
 /** likeCount を直接更新（lib/likes.ts から呼ぶ） */
@@ -178,16 +174,10 @@ export async function updateLikeCount(commentId: string, delta: number): Promise
   await supabase.from("comments").update({ like_count: next }).eq("id", commentId);
 }
 
-/** 管理者用: userId チェックなしで削除 */
+/** 管理者用: userId チェックなしで削除（CASCADE で連動削除） */
 export async function adminDeleteComment(id: string): Promise<void> {
   const supabase = createClient();
-  const { data: replies } = await supabase.from("comments").select("id").eq("parent_id", id);
-  const idsToDelete = [id, ...(replies ?? []).map((r: { id: string }) => r.id)];
   await supabase.from("comments").delete().eq("id", id);
-  for (const cid of idsToDelete) {
-    await deleteLikesForComment(cid);
-    await deleteReportsForComment(cid);
-  }
 }
 
 /** 管理者用: isHidden と reportCount をリセット */

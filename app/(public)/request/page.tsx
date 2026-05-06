@@ -19,6 +19,7 @@ export default function RequestPage() {
   const [mapUrl, setMapUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -28,7 +29,7 @@ export default function RequestPage() {
 
   if (isLoading || !user) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!requireAuth()) return;
 
@@ -49,18 +50,31 @@ export default function RequestPage() {
       }
     }
 
-    submitRequest({
-      name,
-      address,
-      latitude,
-      longitude,
-      type,
-      note,
-      mapUrl: mapUrl.trim() || undefined,
-      userId: user.id,
-      displayName: user.displayName,
-    });
-    setSubmitted(true);
+    setError(null);
+    setIsSubmitting(true);
+    try {
+      await submitRequest({
+        name,
+        address,
+        latitude,
+        longitude,
+        type,
+        note,
+        mapUrl: mapUrl.trim() || undefined,
+        userId: user.id,
+        displayName: user.displayName,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      console.error("[request] submitRequest failed:", err);
+      setError(
+        err instanceof Error
+          ? `送信に失敗しました: ${err.message}`
+          : "送信に失敗しました。時間をおいて再度お試しください",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -199,9 +213,10 @@ export default function RequestPage() {
 
               <button
                 type="submit"
-                className="w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all"
+                disabled={isSubmitting}
+                className="w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                リクエストを送信 →
+                {isSubmitting ? "送信中…" : "リクエストを送信 →"}
               </button>
             </form>
           </div>
