@@ -100,8 +100,18 @@ export function ShopDetailPanel({
             unoptimized
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-7xl">
-            🌮
+          <div
+            className="w-full h-full flex flex-col items-center justify-center bg-masa-lo select-none"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(45deg, transparent 0 14px, rgba(28,22,16,0.05) 14px 15px)",
+            }}
+            aria-label="画像未設定"
+          >
+            <span className="text-6xl opacity-35">🌮</span>
+            <span className="font-serif-it italic text-[10px] tracking-[0.28em] uppercase text-ink/40 mt-1">
+              No Image
+            </span>
           </div>
         )}
 

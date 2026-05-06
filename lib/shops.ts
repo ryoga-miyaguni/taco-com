@@ -65,21 +65,38 @@ export async function getShopSliderRatings(shopId: string): Promise<SliderRating
   return (data as { slider_ratings: SliderRatings | null } | null)?.slider_ratings ?? null;
 }
 
-/** 店舗情報の上書き保存（管理者用） */
+/** 店舗情報の上書き保存（管理者用）。
+ *  name / latitude / longitude も更新できるが、これらが変わると
+ *  shops.id 自体が変わるため、呼び出し元で先に adminRenameShop を
+ *  実行してから新 id でこの関数を呼ぶこと。 */
 export async function saveShopOverride(shopId: string, updates: Partial<Shop>): Promise<void> {
   const supabase = createClient();
   const patch: Record<string, unknown> = {};
   if (updates.name !== undefined) patch.name = updates.name;
+  if (updates.latitude !== undefined) patch.latitude = updates.latitude;
+  if (updates.longitude !== undefined) patch.longitude = updates.longitude;
   if (updates.address !== undefined) patch.address = updates.address;
   if (updates.type !== undefined) patch.type = updates.type;
   if (updates.business_hours !== undefined) patch.business_hours = updates.business_hours;
   if (updates.note !== undefined) patch.note = updates.note;
-  if (updates.image_url !== undefined) patch.image_url = updates.image_url;
-  if (updates.website !== undefined) patch.website = updates.website;
-  if (updates.instagram !== undefined) patch.instagram = updates.instagram;
-  if ("x" in updates) patch.x_url = updates.x ?? null;
+  if (updates.image_url !== undefined) patch.image_url = updates.image_url || null;
+  if (updates.website   !== undefined) patch.website   = updates.website   || null;
+  if (updates.instagram !== undefined) patch.instagram = updates.instagram || null;
+  if ("x" in updates) patch.x_url = updates.x || null;
   if ("sliderRatings" in updates) patch.slider_ratings = updates.sliderRatings ?? null;
   await supabase.from("shops").update(patch).eq("id", shopId);
+}
+
+/** 店舗 ID（= name@lat,lng）の付け替え + 関連テーブルのカスケード更新（管理者用）。
+ *  ID 変更を伴わないフィールド更新は saveShopOverride を直接使うこと。 */
+export async function adminRenameShop(oldId: string, newId: string): Promise<void> {
+  if (oldId === newId) return;
+  const supabase = createClient();
+  const { error } = await supabase.rpc("admin_rename_shop", {
+    p_old_id: oldId,
+    p_new_id: newId,
+  });
+  if (error) throw new Error(error.message);
 }
 
 /** 承認済みの追加店舗一覧（管理者用） */
