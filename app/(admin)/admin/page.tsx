@@ -25,38 +25,13 @@ import { getBadge } from "@/lib/badges";
 
 // ─── 定数 ────────────────────────────────────────────────────────────────────
 
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD ?? "taco-admin-2026";
-const SESSION_KEY    = "taco-com:admin-auth";
+// アクセス制御は middleware.ts の app_metadata.role === "admin" で行う。
+// 未認可ユーザーは /admin に到達する前にトップへリダイレクトされる。
 
 const inputCls =
   "w-full bg-white border-2 border-ink/30 rounded-xl px-3 h-10 text-[13px] outline-none focus:border-naranja focus:ring-1 focus:ring-naranja transition-colors";
 const selectCls =
   "w-full bg-white border-2 border-ink/30 rounded-xl px-3 h-10 text-[13px] outline-none focus:border-naranja focus:ring-1 focus:ring-naranja transition-colors";
-
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-
-function useAdminAuth() {
-  const [authed, setAuthed] = useState(false);
-  const [input, setInput]   = useState("");
-  const [error, setError]   = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && sessionStorage.getItem(SESSION_KEY) === "1")
-      setAuthed(true);
-  }, []);
-
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (input === ADMIN_PASSWORD) {
-      sessionStorage.setItem(SESSION_KEY, "1");
-      setAuthed(true);
-    } else {
-      setError(true);
-      setInput("");
-    }
-  };
-  return { authed, input, setInput, error, submit };
-}
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
@@ -177,7 +152,6 @@ function EmptyState({ text }: { text: string }) {
 // ─── メインページ ─────────────────────────────────────────────────────────────
 
 export default function AdminDashboardPage() {
-  const { authed, input, setInput, error, submit } = useAdminAuth();
   const [tab, setTab]               = useState<Tab>("dashboard");
   const [requests, setRequests]     = useState<ShopRequest[]>([]);
   const [allComments, setAllComments] = useState<Comment[]>([]);
@@ -244,40 +218,7 @@ export default function AdminDashboardPage() {
     return base;
   };
 
-  // ─── 未認証 ──────────────────────────────────────────────────────────────
-
-  if (!authed) {
-    return (
-      <div className="min-h-screen bg-masa paper-lite flex items-center justify-center px-4">
-        <form
-          onSubmit={submit}
-          className="paper card-stamp rounded-2xl border-[3px] border-ink shadow-[6px_6px_0_var(--ink)] px-8 py-10 w-full max-w-sm space-y-5"
-        >
-          <div>
-            <p className="font-serif-it text-[10px] tracking-[0.22em] uppercase text-naranja-deep mb-1">Administración</p>
-            <h1 className="font-display text-ink text-[24px]">管理者ログイン</h1>
-          </div>
-          <input
-            type="password" value={input} onChange={(e) => setInput(e.target.value)}
-            placeholder="パスワードを入力" autoFocus
-            className="w-full bg-white border-2 border-ink rounded-full px-4 h-11 text-[14px] outline-none focus:ring-2 focus:ring-naranja"
-          />
-          {error && <p className="text-[12px] font-bold text-salsa">パスワードが違います</p>}
-          <button
-            type="submit"
-            className="w-full font-display text-[14px] h-11 rounded-full bg-naranja text-crema border-2 border-ink shadow-[3px_3px_0_var(--ink)] hover:translate-x-px hover:translate-y-px hover:shadow-[2px_2px_0_var(--ink)] transition-all"
-          >
-            ログイン →
-          </button>
-          <Link href="/" className="block text-center text-[12px] font-serif-it italic text-muted-foreground hover:text-naranja transition-colors">
-            ← マップに戻る
-          </Link>
-        </form>
-      </div>
-    );
-  }
-
-  // ─── 認証済みダッシュボード ──────────────────────────────────────────────
+  // ─── 認証済みダッシュボード（未認可は middleware が /admin 到達前にリダイレクト） ──
 
   const currentTabConfig = TAB_CONFIG.find((c) => c.id === tab)!;
 

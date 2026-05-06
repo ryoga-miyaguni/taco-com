@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/client";
 import type { Like } from "./types";
-import { loadAllComments, updateLikeCount } from "./comments";
+import { updateLikeCount } from "./comments";
 import { updateMaxLikes } from "./auth";
 
 export async function hasLiked(commentId: string, userId: string): Promise<boolean> {
@@ -23,11 +23,18 @@ export async function getLikedCommentIds(userId: string): Promise<Set<string>> {
 }
 
 export async function toggleLike(commentId: string, userId: string): Promise<boolean> {
-  const allComments = await loadAllComments();
-  const target = allComments.find((c) => c.id === commentId);
-  if (target?.userId === userId) return false;
-
   const supabase = createClient();
+
+  // 対象コメントの作成者と like_count だけを取得（全件フェッチを避ける）
+  const { data: target, error: targetError } = await supabase
+    .from("comments")
+    .select("user_id, like_count")
+    .eq("id", commentId)
+    .single();
+  if (targetError || !target) return false;
+  const targetUserId = (target as { user_id: string }).user_id;
+  if (targetUserId === userId) return false; // 自分のコメントにはいいねできない
+
   const liked = await hasLiked(commentId, userId);
 
   if (liked) {
@@ -39,15 +46,18 @@ export async function toggleLike(commentId: string, userId: string): Promise<boo
   await supabase.from("likes").insert({ comment_id: commentId, user_id: userId });
   await updateLikeCount(commentId, +1);
 
-  if (target) {
-    // RLS で likes の SELECT は本人のみに制限されているため、
-    // 集計には comments.like_count（全体集計値）を直接合算する。
-    const refreshed = await loadAllComments();
-    const userTotal = refreshed
-      .filter((c) => c.userId === target.userId)
-      .reduce((sum, c) => sum + c.likeCount, 0);
-    void updateMaxLikes(target.userId, userTotal);
-  }
+  // 対象ユーザーの全コメントの like_count 合算で maxLikes を更新。
+  // RLS で likes の SELECT は本人のみのため、likes 直接集計ではなく
+  // comments.like_count を引いて合算する。
+  const { data: userComments } = await supabase
+    .from("comments")
+    .select("like_count")
+    .eq("user_id", targetUserId);
+  const userTotal = (userComments ?? []).reduce(
+    (sum, c) => sum + ((c as { like_count: number }).like_count ?? 0),
+    0,
+  );
+  void updateMaxLikes(targetUserId, userTotal);
 
   return true;
 }

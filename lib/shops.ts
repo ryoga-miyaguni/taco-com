@@ -54,16 +54,14 @@ export async function getShops(): Promise<Shop[]> {
 
 /** 店舗のスライダー評価を返す（管理者が設定した値。未設定は null） */
 export async function getShopSliderRatings(shopId: string): Promise<SliderRatings | null> {
+  // shops.id (`name@lat,lng` 形式の TEXT PK) で直接引く。
+  // 旧実装は lat/lng の Number 化で浮動小数比較になり 0 件返す可能性があった。
   const supabase = createClient();
-  const [name, coords] = shopId.split("@");
-  const [lat, lng] = coords.split(",").map(Number);
   const { data } = await supabase
     .from("shops")
     .select("slider_ratings")
-    .eq("name", name)
-    .eq("latitude", lat)
-    .eq("longitude", lng)
-    .single();
+    .eq("id", shopId)
+    .maybeSingle();
   return (data as { slider_ratings: SliderRatings | null } | null)?.slider_ratings ?? null;
 }
 
