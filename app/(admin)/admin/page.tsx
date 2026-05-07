@@ -21,6 +21,7 @@ import { loadAllRequests, updateRequestStatus } from "@/lib/requests";
 import { loadAllComments, adminDeleteComment, adminRestoreComment } from "@/lib/comments";
 import { loadAllUsers, banUser, unbanUser, getCityRanking } from "@/lib/auth";
 import { loadAllReports, deleteReportsForComment } from "@/lib/reports";
+import { loadRecentShopViews, type ShopViewRow } from "@/lib/shopViews";
 import { getBadge } from "@/lib/badges";
 
 // ─── 定数 ────────────────────────────────────────────────────────────────────
@@ -158,15 +159,17 @@ export default function AdminDashboardPage() {
   const [users, setUsers]           = useState<User[]>([]);
   const [allReports, setAllReports] = useState<Report[]>([]);
   const [shopsList, setShopsList]   = useState<Shop[]>([]);
+  const [shopViews, setShopViews]   = useState<ShopViewRow[]>([]);
 
   const reload = async () => {
-    const [requests, comments, users, reports, shops, approved] = await Promise.all([
+    const [requests, comments, users, reports, shops, approved, views] = await Promise.all([
       loadAllRequests(),
       loadAllComments(),
       loadAllUsers(),
       loadAllReports(),
       getShops(),
       loadApprovedShopsPublic(),
+      loadRecentShopViews(30),
     ]);
     setRequests(requests);
     setAllComments(comments);
@@ -174,6 +177,7 @@ export default function AdminDashboardPage() {
     setAllReports(reports);
     setShopsList(shops);
     setApprovedShopIds(new Set(approved.map((s) => getShopId(s))));
+    setShopViews(views);
   };
 
   useEffect(() => { void reload(); }, []);
@@ -203,6 +207,27 @@ export default function AdminDashboardPage() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
   }, [shopsList, topLevelComments]);
+
+  // 直近 30 日のビュー集計（shop_id ごとの件数）
+  const shopViewCounts = useMemo(() => {
+    const m: Record<string, number> = {};
+    shopViews.forEach((v) => { m[v.shop_id] = (m[v.shop_id] ?? 0) + 1; });
+    return m;
+  }, [shopViews]);
+
+  // ダッシュボードで使う「日別ビュー数」と「直近のビュー時刻リスト」
+  const viewsAsCreated = useMemo(
+    () => shopViews.map((v) => ({ createdAt: v.viewed_at })),
+    [shopViews],
+  );
+
+  // ビュー数 TOP5（直近30日）
+  const topViewedShops = useMemo(() => {
+    return [...shopsList]
+      .map((s) => ({ name: s.name, count: shopViewCounts[getShopId(s)] ?? 0 }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+  }, [shopsList, shopViewCounts]);
 
   const topUsers = useMemo(
     () => [...users].sort((a, b) => b.maxLikes - a.maxLikes).slice(0, 5),
@@ -334,7 +359,9 @@ export default function AdminDashboardPage() {
                 reportedCount={reportedComments.length}
                 commentItems={topLevelComments}
                 userItems={users}
+                viewItems={viewsAsCreated}
                 topShops={topShops}
+                topViewedShops={topViewedShops}
                 topUsers={topUsers}
               />
             )}
@@ -344,6 +371,7 @@ export default function AdminDashboardPage() {
                 shops={shopsList}
                 approvedShopIds={approvedShopIds}
                 comments={topLevelComments}
+                viewCounts={shopViewCounts}
                 onChanged={reload}
               />
             )}
@@ -384,26 +412,29 @@ export default function AdminDashboardPage() {
 
 function DashboardTab({
   shopCount, userCount, pendingCount, reportedCount,
-  commentItems, userItems, topShops, topUsers,
+  commentItems, userItems, viewItems, topShops, topViewedShops, topUsers,
 }: {
   shopCount: number; userCount: number; pendingCount: number; reportedCount: number;
   commentItems: { createdAt: string }[];
   userItems: { createdAt: string }[];
+  viewItems: { createdAt: string }[];
   topShops: { name: string; count: number }[];
+  topViewedShops: { name: string; count: number }[];
   topUsers: User[];
 }) {
   const kpis = [
-    { label: "登録店舗",  value: shopCount,      unit: "件", alert: false },
-    { label: "ユーザー",  value: userCount,      unit: "人", alert: false },
-    { label: "口コミ",    value: commentItems.length, unit: "件", alert: false },
-    { label: "審査待ち",  value: pendingCount,   unit: "件", alert: pendingCount > 0 },
-    { label: "通報あり",  value: reportedCount,  unit: "件", alert: reportedCount > 0 },
+    { label: "登録店舗",  value: shopCount,            unit: "件", alert: false },
+    { label: "ユーザー",  value: userCount,            unit: "人", alert: false },
+    { label: "口コミ",    value: commentItems.length,  unit: "件", alert: false },
+    { label: "ビュー(30日)", value: viewItems.length,  unit: "回", alert: false },
+    { label: "審査待ち",  value: pendingCount,         unit: "件", alert: pendingCount > 0 },
+    { label: "通報あり",  value: reportedCount,        unit: "件", alert: reportedCount > 0 },
   ];
 
   return (
     <div className="space-y-6">
       {/* KPI カード */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {kpis.map(({ label, value, unit, alert }) => (
           <div key={label} className={`rounded-xl border-2 border-ink p-4 shadow-[2px_2px_0_var(--ink)] ${alert ? "bg-salsa/8 border-salsa/60" : "bg-crema"}`}>
             <p className={`font-display text-[36px] leading-none ${alert ? "text-salsa" : "text-naranja"}`}>{value}</p>
@@ -413,19 +444,17 @@ function DashboardTab({
         ))}
       </div>
 
-      {/* グラフ + ランキング（PCでは4列グリッド）*/}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        <div className="xl:col-span-2">
-          <ChartCard title="口コミ投稿数" items={commentItems} color="#ea580c" />
-        </div>
-        <div className="xl:col-span-2">
-          <ChartCard title="ユーザー登録数" items={userItems} color="#1a0a02" />
-        </div>
+      {/* グラフ */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <ChartCard title="口コミ投稿数"     items={commentItems} color="#ea580c" />
+        <ChartCard title="ユーザー登録数"   items={userItems}    color="#1a0a02" />
+        <ChartCard title="店舗ビュー数"     items={viewItems}    color="#0891f7" />
       </div>
 
       {/* TOP5 ランキング */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <RankCard title="口コミ TOP 5 店舗" items={topShops.map((s) => ({ label: s.name, value: s.count, suffix: "件" }))} />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <RankCard title="ビュー TOP 5 店舗 (30日)" items={topViewedShops.map((s) => ({ label: s.name, value: s.count, suffix: "回" }))} />
+        <RankCard title="口コミ TOP 5 店舗"         items={topShops.map((s) => ({ label: s.name, value: s.count, suffix: "件" }))} />
         <RankCard
           title="いいね TOP 5 ユーザー"
           items={topUsers.map((u) => ({ label: `${AVATAR_EMOJI[u.avatarKey]} ${u.displayName}`, value: u.maxLikes, suffix: "♥" }))}
@@ -505,11 +534,12 @@ function RankCard({ title, items }: { title: string; items: { label: string; val
 // ─── ShopsTab ─────────────────────────────────────────────────────────────────
 
 function ShopsTab({
-  shops, approvedShopIds, comments, onChanged,
+  shops, approvedShopIds, comments, viewCounts, onChanged,
 }: {
   shops: Shop[];
   approvedShopIds: Set<string>;
   comments: Comment[];
+  viewCounts: Record<string, number>;
   onChanged: () => void;
 }) {
   const [search, setSearch]         = useState("");
@@ -568,8 +598,9 @@ function ShopsTab({
               <th className="text-left px-4 py-2.5 font-display text-[11px] text-ink/60 uppercase tracking-wider w-[30%]">店舗名</th>
               <th className="text-left px-3 py-2.5 font-display text-[11px] text-ink/60 uppercase tracking-wider w-[10%]">種別</th>
               <th className="text-left px-3 py-2.5 font-display text-[11px] text-ink/60 uppercase tracking-wider w-[28%]">住所</th>
-              <th className="text-left px-3 py-2.5 font-display text-[11px] text-ink/60 uppercase tracking-wider w-[16%]">営業時間</th>
-              <th className="text-center px-3 py-2.5 font-display text-[11px] text-ink/60 uppercase tracking-wider w-[6%]">💬</th>
+              <th className="text-left px-3 py-2.5 font-display text-[11px] text-ink/60 uppercase tracking-wider w-[14%]">営業時間</th>
+              <th className="text-center px-2 py-2.5 font-display text-[11px] text-ink/60 uppercase tracking-wider w-[6%]" title="直近30日のビュー数">👀</th>
+              <th className="text-center px-2 py-2.5 font-display text-[11px] text-ink/60 uppercase tracking-wider w-[6%]" title="口コミ数">💬</th>
               <th className="text-right px-4 py-2.5 font-display text-[11px] text-ink/60 uppercase tracking-wider w-[10%]">操作</th>
             </tr>
           </thead>
@@ -591,7 +622,10 @@ function ShopsTab({
                   <td className="px-3 py-3">
                     <span className="text-[12px] text-muted-foreground whitespace-nowrap">{s.business_hours && s.business_hours !== "—" ? s.business_hours : "—"}</span>
                   </td>
-                  <td className="px-3 py-3 text-center">
+                  <td className="px-2 py-3 text-center">
+                    <span className="font-mono text-[12px] text-ink/50">{viewCounts[sid] ?? 0}</span>
+                  </td>
+                  <td className="px-2 py-3 text-center">
                     <span className="font-mono text-[12px] text-ink/50">{commentCounts[sid] ?? 0}</span>
                   </td>
                   <td className="px-4 py-3 text-right">
@@ -640,7 +674,8 @@ function ShopsTab({
                 <p className="text-[11px] text-muted-foreground truncate mt-0.5">{s.address}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="font-mono text-[12px] text-ink/50">💬 {commentCounts[sid] ?? 0}</span>
+                <span className="font-mono text-[12px] text-ink/50" title="直近30日のビュー">👀 {viewCounts[sid] ?? 0}</span>
+                <span className="font-mono text-[12px] text-ink/50" title="口コミ数">💬 {commentCounts[sid] ?? 0}</span>
                 <button type="button" onClick={() => setEditTarget({ shop: s, sid })}
                   className="text-[11px] font-bold px-3 h-7 rounded-full border-2 border-ink/30 text-ink/60 hover:border-ink hover:text-ink transition-colors">
                   編集

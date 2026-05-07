@@ -122,7 +122,7 @@ export async function createProfileForOAuthUser(
     id: userId,
     display_name: name,
     avatar_key: input.avatarKey,
-    max_likes: 5,
+    max_likes: 0,
     is_banned: false,
     birth_year: input.birthYear ?? null,
     residence: input.residence ?? null,

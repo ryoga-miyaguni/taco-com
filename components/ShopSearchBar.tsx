@@ -85,7 +85,9 @@ export function ShopSearchBar({
           onFocus={() => setFocused(true)}
           onBlur={() => setTimeout(() => setFocused(false), 150)}
           placeholder="Buscar…  店舗名・住所・口コミ"
-          className="flex-1 min-w-0 bg-transparent outline-none text-[13px] text-ink placeholder:text-muted-foreground placeholder:font-serif-it placeholder:italic"
+          /* iOS Safari は font-size < 16px の input に focus すると自動
+             ズームする。text-base(16px) + leading-snug でズームを防ぐ。 */
+          className="flex-1 min-w-0 bg-transparent outline-none text-base leading-snug text-ink placeholder:text-muted-foreground placeholder:font-serif-it placeholder:italic"
         />
         {query && (
           <button
