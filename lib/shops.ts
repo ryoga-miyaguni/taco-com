@@ -16,6 +16,7 @@ type ShopRow = {
   website: string | null;
   instagram: string | null;
   x_url: string | null;
+  google_maps_url: string | null;
   slider_ratings: SliderRatings | null;
 };
 
@@ -32,6 +33,7 @@ function mapShop(row: ShopRow): Shop {
     website: row.website ?? undefined,
     instagram: row.instagram ?? undefined,
     x: row.x_url ?? undefined,
+    googleMapsUrl: row.google_maps_url ?? undefined,
     sliderRatings: row.slider_ratings ?? undefined,
   };
 }
@@ -83,6 +85,7 @@ export async function saveShopOverride(shopId: string, updates: Partial<Shop>): 
   if (updates.website   !== undefined) patch.website   = updates.website   || null;
   if (updates.instagram !== undefined) patch.instagram = updates.instagram || null;
   if ("x" in updates) patch.x_url = updates.x || null;
+  if ("googleMapsUrl" in updates) patch.google_maps_url = updates.googleMapsUrl || null;
   if ("sliderRatings" in updates) patch.slider_ratings = updates.sliderRatings ?? null;
   await supabase.from("shops").update(patch).eq("id", shopId);
 }
@@ -127,6 +130,7 @@ export async function saveApprovedShop(shop: Shop): Promise<void> {
     website: shop.website ?? null,
     instagram: shop.instagram ?? null,
     x_url: shop.x ?? null,
+    google_maps_url: shop.googleMapsUrl ?? null,
     slider_ratings: shop.sliderRatings ?? null,
     is_demo: false,
   }, { onConflict: "id" });
