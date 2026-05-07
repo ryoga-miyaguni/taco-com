@@ -294,7 +294,7 @@ export function MapView({ shops }: { shops: Shop[] }) {
       </div>
 
       {/* Bottom-right: FAB — mobile only */}
-      <div className="sm:hidden absolute bottom-36 right-4 z-20">
+      <div className="sm:hidden absolute bottom-25 right-4 z-20">
         <UserFab />
       </div>
 
@@ -435,20 +435,25 @@ function UserFab() {
               ログイン
             </button>
           )}
-          <Link
-            href="/terms"
-            onPointerDown={(e) => e.stopPropagation()}
+          {/* 旧実装は <Link> + onPointerDown(stopPropagation) のみで、
+              一部の iOS Safari で pointerdown→pointerup→click の順序が
+              崩れて Link のナビゲーションが発火しない問題があった。
+              「店舗を追加」「お問い合わせ」と同じ button + router.push
+              パターンに統一する。 */}
+          <button
+            type="button"
+            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); router.push("/terms"); setOpen(false); }}
             className="w-full paper card-stamp rounded-full h-10 flex items-center justify-center font-display text-[13px] text-ink border-2 border-ink shadow-[3px_3px_0_var(--ink)] whitespace-nowrap"
           >
             利用規約
-          </Link>
-          <Link
-            href="/privacy"
-            onPointerDown={(e) => e.stopPropagation()}
+          </button>
+          <button
+            type="button"
+            onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); router.push("/privacy"); setOpen(false); }}
             className="w-full paper card-stamp rounded-full h-10 flex items-center justify-center font-display text-[13px] text-ink border-2 border-ink shadow-[3px_3px_0_var(--ink)] whitespace-nowrap"
           >
             プライバシーポリシー
-          </Link>
+          </button>
           <button
             type="button"
             onPointerDown={(e) => {

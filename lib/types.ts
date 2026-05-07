@@ -12,6 +12,9 @@ export type Shop = {
   website?: string;
   instagram?: string;
   x?: string;
+  /** Google マップの店舗ページ URL（任意）。設定されている場合は
+   *  詳細パネルに「Google マップで開く」ボタンを表示する。 */
+  googleMapsUrl?: string;
   sliderRatings?: SliderRatings;
 };
 

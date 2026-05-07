@@ -62,13 +62,13 @@ export function ShopDetailPanel({
   return (
     <aside
       className="absolute z-20 flex flex-col overflow-hidden
-                 inset-x-0 bottom-0 max-h-[82vh]
+                 inset-x-3 bottom-3 max-h-[82vh]
                  sm:inset-x-auto sm:bottom-4 sm:top-4 sm:right-4 sm:w-104 sm:max-h-none
                  bg-crema paper-lite
-                 border-t-[3px] border-ink
-                 sm:border-[3px]
+                 border-[3px] border-ink
+                 shadow-[4px_4px_0_var(--ink)]
                  sm:shadow-[6px_6px_0_var(--ink)]
-                 rounded-t-3xl sm:rounded-2xl
+                 rounded-3xl sm:rounded-2xl
                  animate-in slide-in-from-bottom-6 sm:slide-in-from-right-6 duration-500"
       role="dialog"
       aria-label={`${shop.name}の詳細`}
@@ -176,7 +176,7 @@ export function ShopDetailPanel({
           {(shop.website || shop.instagram || shop.x) && (
             <div className="mt-5 flex flex-wrap gap-2">
               <ShopLink
-                href={`https://www.google.com/maps/search/?api=1&query=${shop.latitude},${shop.longitude}`}
+                href={shop.googleMapsUrl ?? `https://www.google.com/maps/search/?api=1&query=${shop.latitude},${shop.longitude}`}
                 label="Google Maps"
                 icon={<MapPin className="h-3.5 w-3.5" strokeWidth={2.4} />}
               />
@@ -216,7 +216,7 @@ export function ShopDetailPanel({
           {!(shop.website || shop.instagram || shop.x) && (
             <div className="mt-5">
               <ShopLink
-                href={`https://www.google.com/maps/search/?api=1&query=${shop.latitude},${shop.longitude}`}
+                href={shop.googleMapsUrl ?? `https://www.google.com/maps/search/?api=1&query=${shop.latitude},${shop.longitude}`}
                 label="Google Maps"
                 icon={<MapPin className="h-3.5 w-3.5" strokeWidth={2.4} />}
               />

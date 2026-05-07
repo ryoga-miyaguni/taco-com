@@ -693,6 +693,7 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
   const [website, setWebsite]     = useState(s.website ?? "");
   const [instagram, setInstagram] = useState(s.instagram ?? "");
   const [x, setX]                 = useState(s.x ?? "");
+  const [googleMapsUrl, setGoogleMapsUrl] = useState(s.googleMapsUrl ?? "");
   const [sliderRatings, setSliderRatings] = useState<SliderRatings>(s.sliderRatings ?? DEFAULT_SLIDER);
   const [hasSlider, setHasSlider] = useState(!!s.sliderRatings);
   const [errors, setErrors]       = useState<string[]>([]);
@@ -753,6 +754,7 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
         website:   website.trim(),
         instagram: instagram.trim(),
         x:         x.trim(),
+        googleMapsUrl: googleMapsUrl.trim(),
         sliderRatings: hasSlider ? sliderRatings : undefined,
       });
       onSave();
@@ -851,6 +853,14 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
       <Field label="X / Twitter（URL）">
         <input value={x} onChange={(e) => setX(e.target.value)} placeholder="https://x.com/..." className={inputCls} />
       </Field>
+      <Field label="Google マップ URL">
+        <input value={googleMapsUrl} onChange={(e) => setGoogleMapsUrl(e.target.value)}
+          placeholder="https://maps.app.goo.gl/... または https://www.google.com/maps/place/..."
+          className={inputCls} />
+        <p className="text-[10px] text-muted-foreground mt-1">
+          設定するとパネルに「Google マップで開く」ボタンを表示します。未設定でもピンは緯度・経度から立ちます。
+        </p>
+      </Field>
 
       {/* みんなの声（スライダー評価） */}
       <div className="space-y-2">
@@ -935,6 +945,7 @@ function ShopAddModal({ onSave, onClose }: {
   const [website, setWebsite]     = useState("");
   const [instagram, setInstagram] = useState("");
   const [x, setX]                 = useState("");
+  const [googleMapsUrl, setGoogleMapsUrl] = useState("");
   const [hasSlider, setHasSlider] = useState(false);
   const [sliderRatings, setSliderRatings] = useState<SliderRatings>(DEFAULT_SLIDER);
   const [errors, setErrors]       = useState<string[]>([]);
@@ -974,6 +985,7 @@ function ShopAddModal({ onSave, onClose }: {
         website:   website.trim()   || undefined,
         instagram: instagram.trim() || undefined,
         x:         x.trim()         || undefined,
+        googleMapsUrl: googleMapsUrl.trim() || undefined,
         sliderRatings: hasSlider ? sliderRatings : undefined,
       });
       onSave();
@@ -1062,6 +1074,14 @@ function ShopAddModal({ onSave, onClose }: {
       </Field>
       <Field label="X / Twitter（URL）">
         <input value={x} onChange={(e) => setX(e.target.value)} placeholder="https://x.com/..." className={inputCls} />
+      </Field>
+      <Field label="Google マップ URL">
+        <input value={googleMapsUrl} onChange={(e) => setGoogleMapsUrl(e.target.value)}
+          placeholder="https://maps.app.goo.gl/... または https://www.google.com/maps/place/..."
+          className={inputCls} />
+        <p className="text-[10px] text-muted-foreground mt-1">
+          設定するとパネルに「Google マップで開く」ボタンを表示します。未設定でもピンは緯度・経度から立ちます。
+        </p>
       </Field>
 
       {/* みんなの声（スライダー評価） */}

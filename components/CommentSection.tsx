@@ -109,7 +109,10 @@ export function CommentSection({ shopId }: { shopId: string }) {
                 placeholder="感想・コメント（任意）"
                 rows={3}
                 maxLength={MAX_BODY}
-                className="w-full resize-none bg-crema border-2 border-ink rounded-lg px-3 py-2 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+                /* iOS Safari は font-size < 16px の input/textarea に focus
+                   すると自動ズームする。text-base(16px) + leading-snug で
+                   視覚的密度を保ちつつズームを防ぐ。 */
+                className="w-full resize-none bg-crema border-2 border-ink rounded-lg px-3 py-2 text-base leading-snug outline-none focus:ring-2 focus:ring-naranja"
               />
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[10px] font-mono text-muted-foreground">
@@ -267,7 +270,7 @@ function CommentCard({
             rows={3}
             maxLength={MAX_BODY}
             autoFocus
-            className="w-full resize-none bg-white border-2 border-ink rounded-lg px-3 py-2 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+            className="w-full resize-none bg-white border-2 border-ink rounded-lg px-3 py-2 text-base leading-snug outline-none focus:ring-2 focus:ring-naranja"
           />
           <div className="flex gap-2 justify-end">
             <button
@@ -451,7 +454,7 @@ function ReplyForm({
         rows={2}
         maxLength={MAX_BODY}
         autoFocus
-        className="w-full resize-none bg-white border-2 border-ink rounded-lg px-3 py-2 text-[13px] outline-none focus:ring-2 focus:ring-naranja"
+        className="w-full resize-none bg-white border-2 border-ink rounded-lg px-3 py-2 text-base leading-snug outline-none focus:ring-2 focus:ring-naranja"
       />
       {error && <p className="text-[11px] text-salsa font-bold">{error}</p>}
       <div className="flex justify-end gap-2">
@@ -510,7 +513,7 @@ function ReplyCard({ reply: r, onChanged }: { reply: Comment; onChanged: () => v
             rows={2}
             maxLength={MAX_BODY}
             autoFocus
-            className="w-full resize-none bg-white border border-ink rounded px-2 py-1 text-[12px] outline-none focus:ring-1 focus:ring-naranja"
+            className="w-full resize-none bg-white border border-ink rounded px-2 py-1 text-base leading-snug outline-none focus:ring-1 focus:ring-naranja"
           />
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => setEditing(false)} className="text-[11px] font-bold text-ink/50 hover:text-ink">キャンセル</button>
