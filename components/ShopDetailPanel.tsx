@@ -10,6 +10,7 @@ import { getFavorite, toggleFavorite } from "@/lib/favorites";
 import type { FavoriteType } from "@/lib/types";
 import { getStampCounts, getUserStamps, toggleStamp } from "@/lib/stamps";
 import { getShopSliderRatings } from "@/lib/shops";
+import { recordShopView } from "@/lib/shopViews";
 import { X, MapPin, Clock, Sparkles, Globe } from "lucide-react";
 
 export function ShopDetailPanel({
@@ -45,6 +46,8 @@ export function ShopDetailPanel({
     }
     void reloadStamps();
     void getShopSliderRatings(shopId).then(setAvgRatings);
+    // shop_views へ記録（同セッション 30 分以内の重複は client 側で抑制）
+    void recordShopView(shopId, user?.id ?? null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shopId, user]);
 
