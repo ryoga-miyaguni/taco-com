@@ -6,14 +6,8 @@ import { X } from "lucide-react";
 const FORM_EMBED_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSd_gJyLVOJBIFpzFSbDyd3Zu5GFeRvW1ngL-Sk_3vXRgRKzAA/viewform?embedded=true";
 
-/**
- * 運営へのお問い合わせを Google Forms の embed iframe で表示するモーダル。
- *
- * - 旧実装は `window.open(short URL)` で別タブを開いていたが、iOS Safari の
- *   ポップアップブロッカー等で開かないケースがあった。ページ内 iframe に
- *   切り替えることで確実に表示できる。
- * - body のスクロールロックを onMount/onUnmount で行う。
- */
+/** 運営へのお問い合わせを Google Forms の embed iframe で表示するモーダル。
+ *  オープン中は body のスクロールをロックする。 */
 export function ContactDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   useEffect(() => {
     if (!open) return;

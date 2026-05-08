@@ -79,22 +79,15 @@ export function MapView({ shops }: { shops: Shop[] }) {
     };
   }, []);
 
+  // Supercluster index は shops のみで構築し、フィルタはレンダリング段で適用
   useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-
-    const visible = shops.filter(
-      (s) =>
-        activeTypes.has(s.type) &&
-        (favIds === null || favIds.has(getShopId(s))),
-    );
-
+    if (!mapReady) return;
     const index = new Supercluster<ShopProps>({
       radius: 60,
       maxZoom: 14,
     });
     index.load(
-      visible.map((shop) => ({
+      shops.map((shop) => ({
         type: "Feature",
         properties: { kind: "shop", shop },
         geometry: {
@@ -104,6 +97,16 @@ export function MapView({ shops }: { shops: Shop[] }) {
       })),
     );
     clusterRef.current = index;
+  }, [shops, mapReady]);
+
+  // マーカーレンダリング（フィルタを後段で適用）
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    const matchesFilter = (shop: Shop) =>
+      activeTypes.has(shop.type) &&
+      (favIds === null || favIds.has(getShopId(shop)));
 
     const render = () => {
       const idx = clusterRef.current;
@@ -133,7 +136,14 @@ export function MapView({ shops }: { shops: Shop[] }) {
             };
 
         if ("cluster" in props && props.cluster) {
-          const el = createClusterElement(props.point_count);
+          const leaves = idx.getLeaves(
+            props.cluster_id,
+            Infinity,
+          ) as Array<{ properties: ShopProps }>;
+          const passing = leaves.filter((l) => matchesFilter(l.properties.shop));
+          if (passing.length === 0) continue;
+
+          const el = createClusterElement(passing.length);
           el.addEventListener("click", () => {
             const expansionZoom = Math.min(
               idx.getClusterExpansionZoom(props.cluster_id),
@@ -151,6 +161,7 @@ export function MapView({ shops }: { shops: Shop[] }) {
           markersRef.current.push(marker);
         } else {
           const shop = (props as ShopProps).shop;
+          if (!matchesFilter(shop)) continue;
           const el = createShopElement(shop);
           el.addEventListener("click", (e) => {
             e.stopPropagation();
@@ -437,11 +448,8 @@ function UserFab({ onOpenContact }: { onOpenContact: () => void }) {
               ログイン
             </button>
           )}
-          {/* 旧実装は <Link> + onPointerDown(stopPropagation) のみで、
-              一部の iOS Safari で pointerdown→pointerup→click の順序が
-              崩れて Link のナビゲーションが発火しない問題があった。
-              「店舗を追加」「お問い合わせ」と同じ button + router.push
-              パターンに統一する。 */}
+          {/* iOS Safari の pointerdown→click 順序問題で <Link> がナビ
+              しないことがあるため、button + router.push を使う */}
           <button
             type="button"
             onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); router.push("/terms"); setOpen(false); }}

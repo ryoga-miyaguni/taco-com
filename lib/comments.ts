@@ -1,9 +1,8 @@
 import { createClient } from "@/lib/supabase/client";
 import type { AvatarKey, Comment } from "./types";
 
-// 関連データ (likes / reports / replies) は DB 側の
-// FK ON DELETE CASCADE で自動削除される。
-// 詳細: supabase/migrations/20260504_phase3_cascade_and_seed_cleanup.sql
+// 関連データ (likes / reports / replies) は DB 側の FK ON DELETE
+// CASCADE で自動削除される。
 
 // ─── DB 行 → Comment 型マッピング ────────────────────────────────────────────
 
@@ -161,10 +160,7 @@ export async function deleteComment(id: string, userId: string): Promise<void> {
   await supabase.from("comments").delete().eq("id", id).eq("user_id", userId);
 }
 
-/** likeCount を原子的に増減（lib/likes.ts から呼ぶ）。
- *  旧実装は SELECT → 加減算 → UPDATE の read-modify-write で、同時 like
- *  発生時に lost update を起こしていた。Postgres 側で原子的 UPDATE する
- *  RPC（increment_comment_like_count）に置き換え。 */
+/** likeCount を原子的に +/- delta する（RPC で 1 文 UPDATE）。 */
 export async function updateLikeCount(commentId: string, delta: number): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.rpc("increment_comment_like_count", {
@@ -186,10 +182,7 @@ export async function adminRestoreComment(id: string): Promise<void> {
   await supabase.from("comments").update({ is_hidden: false, report_count: 0 }).eq("id", id);
 }
 
-/** reportCount を +1 し、3件で isHidden = true にする（原子的）。
- *  旧実装は SELECT → +1 → UPDATE の read-modify-write で、同時通報時に
- *  カウンタが 1 多く加算されない / is_hidden 切替が遅れる問題があった。
- *  RPC（increment_comment_report_count）で 1 文の UPDATE に。 */
+/** reportCount を原子的に +1 し、3 件以上で is_hidden=true に切り替える。 */
 export async function incrementReportCount(commentId: string): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase.rpc("increment_comment_report_count", {
