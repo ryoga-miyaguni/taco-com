@@ -87,28 +87,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const supabase = createClient();
 
-    // 初回セッション確認
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (session?.user) {
-        const profile = await fetchProfile(session.user.id);
-        if (!profile) {
-          setPendingProfileUserId(session.user.id);
-          setAuthModalOpen(true);
-        } else if (profile.isBanned) {
-          await supabase.auth.signOut();
-        } else {
-          setUser({ ...profile, authProvider: detectAuthProvider(session) });
-        }
-      }
-      setIsLoading(false);
-    });
-
-    // セッション変化を監視
-    // ⚠️ Supabase 公式の警告: onAuthStateChange のコールバック内で
-    // 他の supabase 関数を await すると client がデッドロックする。
+    // ⚠️ Supabase の制約: onAuthStateChange のコールバック内で他の
+    // supabase 関数を await するとクライアントがデッドロックする。
     // 非同期処理は setTimeout(..., 0) で次のマクロタスクに逃がす。
+    // INITIAL_SESSION 含む全イベントを 1 経路で扱う。
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         setTimeout(async () => {
           if (session?.user) {
             const profile = await fetchProfile(session.user.id);
@@ -127,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(null);
             setPendingProfileUserId(null);
           }
-          if (event !== "INITIAL_SESSION") setIsLoading(false);
+          setIsLoading(false);
         }, 0);
       },
     );

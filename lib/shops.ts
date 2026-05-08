@@ -54,10 +54,10 @@ export async function getShops(): Promise<Shop[]> {
   return (data ?? []).map((row) => mapShop(row as ShopRow));
 }
 
-/** 店舗のスライダー評価を返す（管理者が設定した値。未設定は null） */
+/** 店舗のスライダー評価を返す（管理者が設定した値。未設定は null）。
+ *  shops.id は `name@lat,lng` 形式の TEXT PK なので文字列比較で引く
+ *  （lat/lng を Number 化すると浮動小数誤差で 0 件になり得るため）。 */
 export async function getShopSliderRatings(shopId: string): Promise<SliderRatings | null> {
-  // shops.id (`name@lat,lng` 形式の TEXT PK) で直接引く。
-  // 旧実装は lat/lng の Number 化で浮動小数比較になり 0 件返す可能性があった。
   const supabase = createClient();
   const { data } = await supabase
     .from("shops")
@@ -68,11 +68,44 @@ export async function getShopSliderRatings(shopId: string): Promise<SliderRating
 }
 
 /** 店舗情報の上書き保存（管理者用）。
- *  name / latitude / longitude も更新できるが、これらが変わると
- *  shops.id 自体が変わるため、呼び出し元で先に adminRenameShop を
- *  実行してから新 id でこの関数を呼ぶこと。 */
-export async function saveShopOverride(shopId: string, updates: Partial<Shop>): Promise<void> {
+ *  name / latitude / longitude を含む更新が来た場合は、shops.id
+ *  （= name@lat,lng）の変化を内部で検出し、必要なら admin_rename_shop
+ *  RPC で関連テーブルの shop_id をカスケード更新してからフィールドを
+ *  反映する。呼び出し元は id 構成フィールドの変更を意識する必要が無い。
+ *
+ *  返り値は反映後の shop id（rename された場合は新 id）。 */
+export async function saveShopOverride(
+  shopId: string,
+  updates: Partial<Shop>,
+): Promise<string> {
   const supabase = createClient();
+  let currentId = shopId;
+
+  // ── id 構成フィールド（name / lat / lng）の変化を検出して自動 rename ──
+  const willTouchId =
+    updates.name !== undefined ||
+    updates.latitude !== undefined ||
+    updates.longitude !== undefined;
+
+  if (willTouchId) {
+    const { data: row } = await supabase
+      .from("shops")
+      .select("name, latitude, longitude")
+      .eq("id", shopId)
+      .maybeSingle();
+    if (!row) throw new Error(`shop not found: ${shopId}`);
+    const r = row as { name: string; latitude: number; longitude: number };
+    const newName = updates.name     ?? r.name;
+    const newLat  = updates.latitude ?? r.latitude;
+    const newLng  = updates.longitude ?? r.longitude;
+    const newId = `${newName}@${newLat.toFixed(5)},${newLng.toFixed(5)}`;
+    if (newId !== shopId) {
+      await adminRenameShop(shopId, newId);
+      currentId = newId;
+    }
+  }
+
+  // ── フィールド UPDATE ──
   const patch: Record<string, unknown> = {};
   if (updates.name !== undefined) patch.name = updates.name;
   if (updates.latitude !== undefined) patch.latitude = updates.latitude;
@@ -87,7 +120,9 @@ export async function saveShopOverride(shopId: string, updates: Partial<Shop>): 
   if ("x" in updates) patch.x_url = updates.x || null;
   if ("googleMapsUrl" in updates) patch.google_maps_url = updates.googleMapsUrl || null;
   if ("sliderRatings" in updates) patch.slider_ratings = updates.sliderRatings ?? null;
-  await supabase.from("shops").update(patch).eq("id", shopId);
+  await supabase.from("shops").update(patch).eq("id", currentId);
+
+  return currentId;
 }
 
 /** 店舗 ID（= name@lat,lng）の付け替え + 関連テーブルのカスケード更新（管理者用）。

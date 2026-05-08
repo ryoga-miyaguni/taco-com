@@ -286,12 +286,13 @@ export async function updateUser(
   await supabase.from("profiles").update(patch).eq("id", userId);
 }
 
-/** maxLikes ハイウォーターマーク更新（Step 5 でいいね移行後に有効化） */
+/** maxLikes（過去最高いいね数）のハイウォーターマーク更新。
+ *  現状は no-op。実装は将来の拡張で追加予定。 */
 export async function updateMaxLikes(
   _userId: string,
   _currentTotal: number,
 ): Promise<void> {
-  // Step 5（いいね移行）完了後に実装
+  // intentional no-op
 }
 
 /** ユーザー情報を取得 */

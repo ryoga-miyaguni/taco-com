@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   getShops, loadApprovedShopsPublic, deleteApprovedShop,
-  saveApprovedShop, saveShopOverride, adminRenameShop,
+  saveApprovedShop, saveShopOverride,
 } from "@/lib/shops";
 import {
   SHOP_TYPE_LABEL, REPORT_REASON_LABEL,
@@ -772,12 +772,7 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
     setErrors([]);
     setSaving(true);
     try {
-      if (idChanged) {
-        await adminRenameShop(sid, newId);
-      }
-      // 空文字も明示的に渡す。saveShopOverride が "" → null に変換し、
-      // DB の任意フィールドを正しくクリアできる。
-      await saveShopOverride(newId, {
+      await saveShopOverride(sid, {
         name: trimmedName,
         latitude: latN,
         longitude: lngN,
