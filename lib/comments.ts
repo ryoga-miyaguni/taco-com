@@ -161,17 +161,17 @@ export async function deleteComment(id: string, userId: string): Promise<void> {
   await supabase.from("comments").delete().eq("id", id).eq("user_id", userId);
 }
 
-/** likeCount を直接更新（lib/likes.ts から呼ぶ） */
+/** likeCount を原子的に増減（lib/likes.ts から呼ぶ）。
+ *  旧実装は SELECT → 加減算 → UPDATE の read-modify-write で、同時 like
+ *  発生時に lost update を起こしていた。Postgres 側で原子的 UPDATE する
+ *  RPC（increment_comment_like_count）に置き換え。 */
 export async function updateLikeCount(commentId: string, delta: number): Promise<void> {
   const supabase = createClient();
-  const { data } = await supabase
-    .from("comments")
-    .select("like_count")
-    .eq("id", commentId)
-    .single();
-  if (!data) return;
-  const next = Math.max(0, (data as { like_count: number }).like_count + delta);
-  await supabase.from("comments").update({ like_count: next }).eq("id", commentId);
+  const { error } = await supabase.rpc("increment_comment_like_count", {
+    p_comment_id: commentId,
+    p_delta: delta,
+  });
+  if (error) console.error("updateLikeCount:", error.message);
 }
 
 /** 管理者用: userId チェックなしで削除（CASCADE で連動削除） */
@@ -186,18 +186,14 @@ export async function adminRestoreComment(id: string): Promise<void> {
   await supabase.from("comments").update({ is_hidden: false, report_count: 0 }).eq("id", id);
 }
 
-/** reportCount を +1 し、3件で isHidden = true にする */
+/** reportCount を +1 し、3件で isHidden = true にする（原子的）。
+ *  旧実装は SELECT → +1 → UPDATE の read-modify-write で、同時通報時に
+ *  カウンタが 1 多く加算されない / is_hidden 切替が遅れる問題があった。
+ *  RPC（increment_comment_report_count）で 1 文の UPDATE に。 */
 export async function incrementReportCount(commentId: string): Promise<void> {
   const supabase = createClient();
-  const { data } = await supabase
-    .from("comments")
-    .select("report_count")
-    .eq("id", commentId)
-    .single();
-  if (!data) return;
-  const newCount = (data as { report_count: number }).report_count + 1;
-  await supabase
-    .from("comments")
-    .update({ report_count: newCount, is_hidden: newCount >= 3 })
-    .eq("id", commentId);
+  const { error } = await supabase.rpc("increment_comment_report_count", {
+    p_comment_id: commentId,
+  });
+  if (error) console.error("incrementReportCount:", error.message);
 }

@@ -34,11 +34,11 @@ export async function hasReported(commentId: string, userId: string): Promise<bo
 export async function reportComment(commentId: string, userId: string, reason: ReportReason): Promise<boolean> {
   if (await hasReported(commentId, userId)) return false;
   const supabase = createClient();
+  // created_at は DB の DEFAULT now() に任せる（クライアント時計を信頼しない）。
   await supabase.from("reports").insert({
     comment_id: commentId,
     reporter_user_id: userId,
     reason,
-    created_at: new Date().toISOString(),
   });
   await incrementReportCount(commentId);
   return true;
