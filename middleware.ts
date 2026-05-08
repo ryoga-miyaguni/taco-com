@@ -32,10 +32,17 @@ export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/admin")) {
     const role = user?.app_metadata?.role;
     if (role !== "admin") {
-      return NextResponse.redirect(new URL("/", request.url));
+      const redirectResp = NextResponse.redirect(new URL("/", request.url));
+      // セッション付きレスポンスは CDN にキャッシュさせない
+      redirectResp.headers.set("Cache-Control", "private, no-store");
+      return redirectResp;
     }
   }
 
+  // セッションクッキーを含む全レスポンスは CDN にキャッシュさせない。
+  // Supabase 公式 advanced-guide の推奨設定で、将来カスタム CDN を挟んだ
+  // 際にユーザー A のセッションが B に提供される事故を予防する。
+  supabaseResponse.headers.set("Cache-Control", "private, no-store");
   return supabaseResponse;
 }
 
