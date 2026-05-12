@@ -9,6 +9,7 @@ import {
   getShops, loadApprovedShopsPublic, deleteApprovedShop,
   saveApprovedShop, saveShopOverride,
 } from "@/lib/shops";
+import { uploadShopImage, deleteShopImage } from "@/lib/storage";
 import {
   SHOP_TYPE_LABEL, REPORT_REASON_LABEL,
   RESIDENCE_LABEL, TRANSPORT_LABEL, SHELL_LABEL, SPICE_LABEL,
@@ -733,7 +734,11 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
   const [hasSlider, setHasSlider] = useState(!!s.sliderRatings);
   const [errors, setErrors]       = useState<string[]>([]);
   const [saving, setSaving]       = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // モーダル open 時の image_url。保存時に変わっていれば古い Storage
+  // オブジェクトを削除する判定に使う。
+  const originalImageUrlRef = useRef<string>(s.image_url ?? "");
 
   // ID（= name@lat,lng）の差分検知
   const trimmedName = name.trim();
@@ -745,12 +750,19 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
       : sid;
   const idChanged = newId !== sid;
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setImageUrl(reader.result as string);
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      const url = await uploadShopImage(file);
+      setImageUrl(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "アップロードに失敗しました");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const handleSave = async () => {
@@ -787,6 +799,11 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
         googleMapsUrl: googleMapsUrl.trim(),
         sliderRatings: hasSlider ? sliderRatings : undefined,
       });
+      // open 時の画像と異なる結果になった場合、旧 Storage オブジェクトを削除
+      const orig = originalImageUrlRef.current;
+      if (orig && orig !== imageUrl.trim()) {
+        void deleteShopImage(orig);
+      }
       onSave();
     } catch (err) {
       setErrors([err instanceof Error ? err.message : "保存に失敗しました"]);
@@ -831,7 +848,7 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
               <img src={imageUrl} alt="プレビュー" className="w-full h-full object-cover" />
               <button
                 type="button"
-                onClick={() => { setImageUrl(""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                onClick={() => setImageUrl("")}
                 className="absolute top-2 right-2 w-7 h-7 rounded-full bg-ink/60 text-crema text-[12px] flex items-center justify-center hover:bg-ink transition-colors"
               >
                 ✕
@@ -842,9 +859,10 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="h-9 px-4 rounded-full border-2 border-ink/30 font-display text-[12px] text-ink hover:border-ink hover:bg-masa-hi transition-colors"
+              disabled={uploading}
+              className="h-9 px-4 rounded-full border-2 border-ink/30 font-display text-[12px] text-ink hover:border-ink hover:bg-masa-hi transition-colors disabled:opacity-50"
             >
-              ファイルを選択
+              {uploading ? "アップロード中…" : "ファイルを選択"}
             </button>
             <span className="flex items-center text-[11px] text-muted-foreground font-serif-it italic">または</span>
             <input
@@ -854,6 +872,9 @@ function ShopEditModal({ shop: s, sid, onSave, onClose }: {
               className={`flex-1 ${inputCls}`}
             />
           </div>
+          <p className="text-[10px] text-muted-foreground">
+            アップロード時に長辺 1600px・JPEG 0.85 にリサイズします。iPhone の写真もそのまま選択できます（自動で JPEG 変換）。
+          </p>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
         </div>
       </Field>
@@ -980,14 +1001,22 @@ function ShopAddModal({ onSave, onClose }: {
   const [sliderRatings, setSliderRatings] = useState<SliderRatings>(DEFAULT_SLIDER);
   const [errors, setErrors]       = useState<string[]>([]);
   const [saving, setSaving]       = useState(false);
+  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setImageUrl(reader.result as string);
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      const url = await uploadShopImage(file);
+      setImageUrl(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "アップロードに失敗しました");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   const handleSave = async () => {
@@ -1066,7 +1095,10 @@ function ShopAddModal({ onSave, onClose }: {
               <img src={imageUrl} alt="プレビュー" className="w-full h-full object-cover" />
               <button
                 type="button"
-                onClick={() => { setImageUrl(""); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+                onClick={() => {
+                  void deleteShopImage(imageUrl);
+                  setImageUrl("");
+                }}
                 className="absolute top-2 right-2 w-7 h-7 rounded-full bg-ink/60 text-crema text-[12px] flex items-center justify-center hover:bg-ink transition-colors"
               >
                 ✕
@@ -1077,9 +1109,10 @@ function ShopAddModal({ onSave, onClose }: {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="h-9 px-4 rounded-full border-2 border-ink/30 font-display text-[12px] text-ink hover:border-ink hover:bg-masa-hi transition-colors"
+              disabled={uploading}
+              className="h-9 px-4 rounded-full border-2 border-ink/30 font-display text-[12px] text-ink hover:border-ink hover:bg-masa-hi transition-colors disabled:opacity-50"
             >
-              ファイルを選択
+              {uploading ? "アップロード中…" : "ファイルを選択"}
             </button>
             <span className="flex items-center text-[11px] text-muted-foreground font-serif-it italic">または</span>
             <input
@@ -1091,7 +1124,7 @@ function ShopAddModal({ onSave, onClose }: {
           </div>
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
           <p className="text-[10px] text-muted-foreground">
-            未設定の場合は地図カードに「No Image」プレースホルダーを表示します。
+            アップロード時に長辺 1600px・JPEG 0.85 にリサイズします。iPhone の写真もそのまま選択できます（自動で JPEG 変換）。未設定の場合は地図カードに「No Image」を表示します。
           </p>
         </div>
       </Field>
